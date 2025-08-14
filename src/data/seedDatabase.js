@@ -30,6 +30,31 @@ const seedUsers = async () => {
 
   const users = [
     {
+      name: 'Michael Griffin',
+      username: 'michael_griffin',
+      email: 'michael.griffin@youyesyou.com',
+      password: 'TechAdmin123!',
+      bio: 'Chief Administrator. Builder of platforms and people. Passionate about technology, ministry, and empowering fathers to lead with purpose.',
+      location: 'Baltimore, MD',
+      phase: 'Phase 3',
+      skills: [
+        // Technology
+        'TypeScript', 'JavaScript', 'Node.js', 'Express', 'React', 'React Native', 'Expo', 'MongoDB',
+        'Mongoose', 'REST APIs', 'GraphQL', 'Socket.IO', 'WebSockets', 'Redis', 'Docker', 'Kubernetes',
+        'AWS', 'EC2', 'S3', 'CloudFront', 'Route53', 'CI/CD', 'GitHub Actions', 'Jest', 'Playwright',
+        'Unit Testing', 'Integration Testing', 'End-to-End Testing', 'Vite', 'Webpack', 'Babel',
+        'Tailwind CSS', 'Design Systems', 'System Design', 'Security', 'OAuth', 'JWT', 'CORS',
+        // Ministry & Leadership
+        'Pastoral Care', 'Mentoring', 'Teaching', 'Counseling', 'Ministry Leadership', 'Discipleship',
+        'Community Outreach', 'Program Development', 'Public Speaking'
+      ],
+      points: 2500,
+      level: 'Legacy Leader',
+      role: 'admin',
+      avatar: 'https://images.pexels.com/photos/1704488/pexels-photo-1704488.jpeg?auto=compress&cs=tinysrgb&w=400',
+      emailVerified: true,
+    },
+    {
       name: 'Marcus Johnson',
       username: 'marcus_builder',
       email: 'admin@youyesyou.com',
@@ -516,6 +541,23 @@ const seedAdminSettings = async () => {
         },
       },
     },
+    {
+      category: 'about',
+      settings: {
+        content: {
+          hero: {
+            title: 'Welcome to the YOU YES YOU Project',
+            subtitle: 'A transformative digital community for formerly incarcerated fathers ready to rebuild, restore, and rise.'
+          },
+          mission: {
+            heading: 'A Brotherhood. A Blueprint. A Second Chance That Leads to Your Best Life.',
+            paragraphs: [
+              'This isn\'t just another reentry program. This is a movement of men walking in truth, healing through accountability, and building legacies through knowledge, action, and community.'
+            ]
+          }
+        }
+      }
+    },
   ];
 
   await AdminSettings.deleteMany({});
@@ -528,6 +570,24 @@ const seedAdminSettings = async () => {
   }
 
   console.log(`✅ Created default admin settings`);
+};
+
+const seedNotifications = async (users) => {
+  console.log('🌱 Seeding notifications...');
+  const notifications = [];
+  for (const user of users) {
+    notifications.push({
+      recipient: user._id,
+      type: 'welcome',
+      title: 'Welcome to YOU YES YOU! 🎉',
+      message: 'Start by completing your profile and introducing yourself in General Discussion. Your transformation journey begins now.',
+      priority: 'high',
+      actionUrl: '/profile',
+      icon: '👋',
+    });
+  }
+  await Notification.create(notifications);
+  console.log(`✅ Created ${notifications.length} notifications`);
 };
 
 const seedChallenges = async () => {
@@ -849,6 +909,7 @@ const seedDatabase = async () => {
     const badges = await seedBadges();
     const rewards = await seedRewards();
     const integrations = await seedIntegrations();
+    await seedNotifications(users);
 
     // Enroll some users in courses
     console.log('🌱 Adding course enrollments...');
