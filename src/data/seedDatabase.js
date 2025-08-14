@@ -590,7 +590,7 @@ const seedNotifications = async (users) => {
   console.log(`✅ Created ${notifications.length} notifications`);
 };
 
-const seedChallenges = async () => {
+const seedChallenges = async (createdByUserId) => {
   console.log('🌱 Seeding challenges...');
 
   const challenges = [
@@ -653,7 +653,7 @@ const seedChallenges = async () => {
   for (const challengeData of challenges) {
     await Challenge.create({
       ...challengeData,
-      createdBy: null, // System challenge
+      createdBy: createdByUserId,
     });
   }
 
@@ -906,7 +906,7 @@ const seedDatabase = async () => {
     const connections = await seedConnections(users);
     const admin = users.find(u => u.role === 'admin') || users[0];
     await seedAdminSettings(admin._id);
-    const challenges = await seedChallenges();
+    const challenges = await seedChallenges(admin._id);
     const badges = await seedBadges();
     const rewards = await seedRewards();
     const integrations = await seedIntegrations();
