@@ -114,6 +114,14 @@ app.get('/health', (req, res) => {
   });
 });
 
+// Root welcome endpoint to avoid 404 on '/'
+app.get('/', (req, res) => {
+  res.status(200).send('YOU YES YOU API');
+});
+
+// Optional: favicon to avoid noisy 404s
+app.get('/favicon.ico', (req, res) => res.status(204).end());
+
 // API routes
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
