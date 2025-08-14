@@ -508,7 +508,7 @@ const seedConnections = async (users) => {
   return createdConnections;
 };
 
-const seedAdminSettings = async () => {
+const seedAdminSettings = async (adminUserId) => {
   console.log('🌱 Seeding admin settings...');
 
   const defaultSettings = [
@@ -565,7 +565,7 @@ const seedAdminSettings = async () => {
   for (const settingData of defaultSettings) {
     await AdminSettings.create({
       ...settingData,
-      updatedBy: null, // System default
+      updatedBy: adminUserId,
     });
   }
 
@@ -904,7 +904,8 @@ const seedDatabase = async () => {
     const events = await seedEvents();
     const resources = await seedResources();
     const connections = await seedConnections(users);
-    await seedAdminSettings();
+    const admin = users.find(u => u.role === 'admin') || users[0];
+    await seedAdminSettings(admin._id);
     const challenges = await seedChallenges();
     const badges = await seedBadges();
     const rewards = await seedRewards();
