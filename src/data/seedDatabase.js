@@ -650,14 +650,17 @@ const seedChallenges = async (createdByUserId) => {
 
   await Challenge.deleteMany({});
 
+  const createdChallenges = [];
   for (const challengeData of challenges) {
-    await Challenge.create({
+    const created = await Challenge.create({
       ...challengeData,
       createdBy: createdByUserId,
     });
+    createdChallenges.push(created);
   }
 
-  console.log(`✅ Created ${challenges.length} challenges`);
+  console.log(`✅ Created ${createdChallenges.length} challenges`);
+  return createdChallenges;
 };
 
 const seedBadges = async () => {

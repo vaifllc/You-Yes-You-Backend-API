@@ -230,9 +230,8 @@ const userSchema = new mongoose.Schema({
 });
 
 // Index for better query performance (ensure declared once)
-// Using unique indexes here avoids duplicate declaration with schema field unique flags
-userSchema.index({ email: 1 }, { unique: true });
-userSchema.index({ username: 1 }, { unique: true });
+// Use plain indexes here to avoid duplicating unique defs on fields
+userSchema.index({ points: -1 });
 userSchema.index({ points: -1 });
 userSchema.index({ 'courses.courseId': 1 });
 
