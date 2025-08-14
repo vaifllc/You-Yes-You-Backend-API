@@ -72,11 +72,14 @@ const limiter = rateLimit({
   },
 });
 
-// Speed limiting
+// Speed limiting (express-slow-down v2 config)
 const speedLimiter = slowDown({
   windowMs: 15 * 60 * 1000, // 15 minutes
   delayAfter: 50, // allow 50 requests per windowMs without delay
-  delayMs: 500, // add 500ms delay per request after delayAfter
+  // In v2, delayMs should be a function for the "new behavior"
+  delayMs: () => 500,
+  // Silence validation warning since we're explicitly setting new behavior
+  validate: { delayMs: false },
 });
 
 app.use(limiter);
