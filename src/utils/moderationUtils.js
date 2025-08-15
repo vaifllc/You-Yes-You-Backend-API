@@ -29,17 +29,18 @@ const PROFANITY_PATTERNS = [
 
 // Hate speech patterns and common slurs (kept generic; do not log raw content)
 const HATE_SPEECH_PATTERNS = [
-  /\b(hate|kill|die|murder|destroy)\s+(you|them|him|her|yourself)\b/gi,
+  // More specific patterns to avoid false positives
+  /\b(hate|kill|murder)\s+(you|them|him|her|yourself)\b/gi,
   /\b(go\s+die|kill\s+yourself)\b/gi,
   /\b(worthless|pathetic|scum|trash)\s+(person|human|father|man|people)\b/gi,
   /\b(should\s+be\s+dead|deserve\s+to\s+die)\b/gi,
   // slurs (obfuscated variants)
-  /n+[@a4]*g+[@a4]*g+[e3]*r*/i,
-  /k+[@a4]*k+[@a4]*/i,
-  /c+h+i+n+k+/i,
-  /s+p+i*c+/i,
-  /t+r+[@a4]n+n*y+/i,
-  /f+[@a4]g+(g*o*t+)?/i,
+  /\bn+[@a4]*g+[@a4]*g+[e3]*r*\b/i,
+  /\bk+[@a4]*k+[@a4]*\b/i,
+  /\bc+h+i+n+k+\b/i,
+  /\bs+p+i*c+\b/i,
+  /\bt+r+[@a4]n+n*y+\b/i,
+  /\bf+[@a4]g+(g*o*t+)?\b/i,
 ];
 
 // Bullying/harassment patterns (non-protected-class insults, direct attacks)
@@ -158,10 +159,12 @@ export const moderateContent = (content) => {
     issues.push('Contains profanity');
   }
 
-  // Check for hate speech
-  const hateSpeechFound = HATE_SPEECH_PATTERNS.some(pattern =>
-    pattern.test(content) || pattern.test(normalized) || pattern.test(normalizedCollapsed)
-  );
+  // Check for hate speech - ensure we're not getting false positives
+  const hateSpeechFound = HATE_SPEECH_PATTERNS.some(pattern => {
+    // Skip checking single words or very short phrases that might trigger false positives
+    if (content.length < 5) return false;
+    return pattern.test(content) || pattern.test(normalized) || pattern.test(normalizedCollapsed);
+  });
 
   if (hateSpeechFound) {
     flags.hateSpeech = true;
