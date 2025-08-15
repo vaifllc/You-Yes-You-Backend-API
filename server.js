@@ -99,16 +99,33 @@ app.use(limiter);
 app.use(speedLimiter);
 
 // CORS configuration
-app.use(cors({
-  origin: process.env.NODE_ENV === 'production'
-    ? [
-        'https://youyesyou.com',
-        'https://www.youyesyou.com',
-        'https://689e9bd559d6d631db331fc4--you-yes-you.netlify.app',
-      ]
-    : ['http://localhost:3000', 'http://localhost:5173'],
+const allowedOrigins = [
+  'https://youyesyou.com',
+  'https://www.youyesyou.com',
+  'https://youyesyou.ddns.net',
+  'http://localhost:3000',
+  'http://localhost:5173',
+];
+
+const corsOptions = {
+  origin(origin, callback) {
+    // Allow non-browser or same-origin requests
+    if (!origin) return callback(null, true);
+
+    const isAllowed =
+      allowedOrigins.includes(origin) ||
+      /\.netlify\.app$/.test(new URL(origin).host); // any *.netlify.app
+
+    if (isAllowed) return callback(null, true);
+    return callback(new Error(`CORS blocked for origin: ${origin}`));
+  },
   credentials: true,
-}));
+  methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
+  optionsSuccessStatus: 204,
+};
+
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions));
 
 // Body parsing middleware
 app.use(express.json({ limit: '10mb' }));
