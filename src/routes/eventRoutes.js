@@ -86,6 +86,31 @@ router.get('/', optionalAuth, validatePagination, asyncHandler(async (req, res) 
   });
 }));
 
+// NOTE: Place static routes before parameterized :id to avoid collisions (e.g., /my-events)
+// @desc    Get user's events
+// @route   GET /api/events/my-events
+// @access  Private
+router.get('/my-events', authenticate, asyncHandler(async (req, res) => {
+  const { upcoming = true } = req.query;
+
+  const query = {
+    'attendees.user': req.user._id,
+    'attendees.status': 'going',
+  };
+
+  if (upcoming === 'true') {
+    query.date = { $gte: new Date() };
+  }
+
+  const events = await Event.find(query)
+    .sort({ date: 1 });
+
+  res.status(200).json({
+    success: true,
+    data: events,
+  });
+}));
+
 // @desc    Get single event
 // @route   GET /api/events/:id
 // @access  Public
@@ -178,29 +203,7 @@ router.put('/:id/rsvp', authenticate, validateObjectId, asyncHandler(async (req,
   });
 }));
 
-// @desc    Get user's events
-// @route   GET /api/events/my-events
-// @access  Private
-router.get('/my-events', authenticate, asyncHandler(async (req, res) => {
-  const { upcoming = true } = req.query;
-
-  const query = {
-    'attendees.user': req.user._id,
-    'attendees.status': 'going',
-  };
-
-  if (upcoming === 'true') {
-    query.date = { $gte: new Date() };
-  }
-
-  const events = await Event.find(query)
-    .sort({ date: 1 });
-
-  res.status(200).json({
-    success: true,
-    data: events,
-  });
-}));
+// (moved above to avoid /:id catching /my-events)
 
 // Admin routes
 router.use(authorize('admin'));
