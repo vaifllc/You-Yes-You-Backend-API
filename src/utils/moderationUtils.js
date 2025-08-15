@@ -1446,7 +1446,10 @@ export const moderateContentBatch = async (contents, options = {}) => {
   return results
 }
 
-// Export main functions
+// Export additional utility functions as named exports
+export { filterPersonalInfo };
+
+// Export main functions as default export for backward compatibility
 export default {
   moderateContent,
   analyzeUserBehavior,
