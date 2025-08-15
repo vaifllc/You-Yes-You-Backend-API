@@ -847,14 +847,14 @@ export const analyzeUserBehavior = async (userId, User, Post, Report) => {
     // Get comprehensive user data
     const [recentPosts, allPosts, reports, userReports] = await Promise.all([
       Post.find({
-        author: userId,
+    author: userId,
         createdAt: { $gte: weekAgo },
       }).sort({ createdAt: -1 }),
 
       Post.find({ author: userId }).sort({ createdAt: -1 }).limit(100),
 
       Report.find({
-        reportedUser: userId,
+    reportedUser: userId,
         createdAt: { $gte: monthAgo },
       }),
 
@@ -875,8 +875,8 @@ export const analyzeUserBehavior = async (userId, User, Post, Report) => {
     const behaviorPattern = analyzeBehaviorPattern(recentPosts, allPosts)
     const contentQuality = analyzeContentQuality(recentPosts)
 
-    return {
-      userId,
+  return {
+    userId,
       riskScore: riskFactors.totalScore,
       riskLevel: getRiskLevel(riskFactors.totalScore),
       factors: riskFactors,
@@ -884,7 +884,7 @@ export const analyzeUserBehavior = async (userId, User, Post, Report) => {
       contentQuality,
       recentActivity: {
         postCount: recentPosts.length,
-        reportCount: reports.length,
+    reportCount: reports.length,
         reportsFiledCount: userReports.length,
       },
       recommendations: generateAdvancedRecommendations(
@@ -1326,19 +1326,19 @@ export const getModerationStats = async (Post, Report, User) => {
   }
 
   try {
-    const [
-      pendingReports,
+  const [
+    pendingReports,
       reportsToday,
-      reportsThisWeek,
-      reportsThisMonth,
-      flaggedPosts,
+    reportsThisWeek,
+    reportsThisMonth,
+    flaggedPosts,
       approvedPosts,
-      bannedUsers,
+    bannedUsers,
       warnedUsers,
       highRiskUsers,
       contentViolations,
-    ] = await Promise.all([
-      Report.countDocuments({ status: 'pending' }),
+  ] = await Promise.all([
+    Report.countDocuments({ status: 'pending' }),
       Report.countDocuments({ createdAt: { $gte: timeRanges.today } }),
       Report.countDocuments({ createdAt: { $gte: timeRanges.weekAgo } }),
       Report.countDocuments({ createdAt: { $gte: timeRanges.monthAgo } }),
@@ -1376,9 +1376,9 @@ export const getModerationStats = async (Post, Report, User) => {
         ? 0
         : ((reportsLastWeek - reportsWeekBefore) / reportsWeekBefore) * 100
 
-    return {
+  return {
       overview: {
-        pendingReports,
+    pendingReports,
         flaggedPosts,
         moderationLoad: pendingReports + flaggedPosts,
         bannedUsers,
@@ -1386,8 +1386,8 @@ export const getModerationStats = async (Post, Report, User) => {
       },
       activity: {
         reportsToday,
-        reportsThisWeek,
-        reportsThisMonth,
+    reportsThisWeek,
+    reportsThisMonth,
         approvedPosts,
         contentViolations,
       },
@@ -1395,7 +1395,7 @@ export const getModerationStats = async (Post, Report, User) => {
         reportTrend: Math.round(reportTrend),
         riskLevel: calculateOverallRiskLevel(
           pendingReports,
-          flaggedPosts,
+    flaggedPosts,
           highRiskUsers,
         ),
       },
