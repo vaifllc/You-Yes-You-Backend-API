@@ -1,4 +1,5 @@
 import { moderateContent } from '../utils/moderationUtils.js';
+import { isImageExplicit } from '../services/imageModeration.js';
 
 // Middleware to moderate content before it's saved
 export const moderateContentMiddleware = (contentField = 'content') => {
@@ -42,7 +43,7 @@ export const moderateContentMiddleware = (contentField = 'content') => {
 };
 
 // Middleware for posts (also checks images if present)
-export const moderatePostContent = (req, res, next) => {
+export const moderatePostContent = async (req, res, next) => {
   const { content, images } = req.body;
 
   if (!content) {
@@ -70,7 +71,7 @@ export const moderatePostContent = (req, res, next) => {
     });
   }
 
-  // Check for image moderation (basic checks)
+  // Check for image moderation (basic checks + provider scan if configured)
   if (images && images.length > 0) {
     if (images.length > 5) {
       return res.status(400).json({
@@ -93,6 +94,29 @@ export const moderatePostContent = (req, res, next) => {
         success: false,
         message: 'Post images violate community guidelines (nudity is not allowed)',
       });
+    }
+
+    // Provider-based scanning for image URLs
+    const urlImages = images.filter((img) => typeof img === 'string' && /^https?:\/\//i.test(img));
+    if (urlImages.length > 0) {
+      try {
+        const results = await Promise.all(urlImages.map((url) => isImageExplicit(url)));
+        const flagged = results.find((r) => r.isExplicit);
+        if (flagged) {
+          console.warn('🚫 Post images blocked by vision moderation', {
+            user: req.user?.username,
+            path: req.originalUrl,
+            reason: flagged.reasons,
+            score: flagged.score,
+          });
+          return res.status(400).json({
+            success: false,
+            message: 'Post images violate community guidelines (vision moderation)',
+          });
+        }
+      } catch (e) {
+        // Fail-open on provider errors; filename heuristic still applied
+      }
     }
   }
 
@@ -118,7 +142,7 @@ export const moderatePostContent = (req, res, next) => {
 };
 
 // Middleware for comments
-export const moderateCommentContent = (req, res, next) => {
+export const moderateCommentContent = async (req, res, next) => {
   const { content } = req.body;
 
   if (!content) {
@@ -164,7 +188,7 @@ export const moderateCommentContent = (req, res, next) => {
 };
 
 // Middleware for messages
-export const moderateMessageContent = (req, res, next) => {
+export const moderateMessageContent = async (req, res, next) => {
   const { content, type = 'text' } = req.body;
 
   // If image/file message, apply a basic nudity filename/URL heuristic if content is provided
@@ -180,6 +204,29 @@ export const moderateMessageContent = (req, res, next) => {
           success: false,
           message: 'Message violates community guidelines (nudity is not allowed)',
         });
+      }
+    }
+    // If message contains a URL to an image, scan with provider
+    if (typeof content === 'string') {
+      const urlMatch = content.match(/https?:\/\/[\S]+/gi) || [];
+      const imageUrls = urlMatch.filter((u) => /(\.png|\.jpe?g|\.gif|\.webp)(\?|$)/i.test(u));
+      if (imageUrls.length > 0) {
+        try {
+          const results = await Promise.all(imageUrls.map((url) => isImageExplicit(url)));
+          const flagged = results.find((r) => r.isExplicit);
+          if (flagged) {
+            console.warn('🚫 Message blocked by vision moderation', {
+              user: req.user?.username,
+              path: req.originalUrl,
+              reason: flagged.reasons,
+              score: flagged.score,
+            });
+            return res.status(400).json({
+              success: false,
+              message: 'Message violates community guidelines (vision moderation)',
+            });
+          }
+        } catch {}
       }
     }
     return next();

@@ -60,8 +60,21 @@ const io = new Server(server, {
 const PORT = process.env.PORT || 5000;
 
 // Security middleware
+// If running behind a proxy/load balancer (NGINX, ALB, etc.), trust the proxy
+// so Express and rate-limit can read X-Forwarded-* headers safely
+app.set('trust proxy', process.env.TRUST_PROXY ? Number(process.env.TRUST_PROXY) : 1);
 app.use(helmet());
 app.use(compression());
+
+// Config diagnostics (safe, no secrets)
+if (process.env.SIGHTENGINE_USER && process.env.SIGHTENGINE_SECRET) {
+  console.log('🛡️ Image moderation provider: Sightengine enabled');
+} else {
+  console.log('ℹ️ Image moderation provider not configured; using keyword heuristics only');
+}
+if (process.env.BANNED_TERMS_PATH) {
+  console.log('📝 External banned terms file:', process.env.BANNED_TERMS_PATH);
+}
 
 // Rate limiting
 const limiter = rateLimit({

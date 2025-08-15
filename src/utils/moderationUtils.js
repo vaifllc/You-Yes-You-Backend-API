@@ -1,4 +1,5 @@
 // Comprehensive content moderation utilities
+import fs from 'fs';
 
 const PROFANITY_WORDS = [
   // General profanity
@@ -26,12 +27,19 @@ const PROFANITY_PATTERNS = [
   /\bwtf\b/i,                             // wtf
 ];
 
+// Hate speech patterns and common slurs (kept generic; do not log raw content)
 const HATE_SPEECH_PATTERNS = [
   /\b(hate|kill|die|murder|destroy)\s+(you|them|him|her|yourself)\b/gi,
   /\b(go\s+die|kill\s+yourself)\b/gi,
-  /\b(worthless|pathetic|scum|trash)\s+(person|human|father|man)\b/gi,
+  /\b(worthless|pathetic|scum|trash)\s+(person|human|father|man|people)\b/gi,
   /\b(should\s+be\s+dead|deserve\s+to\s+die)\b/gi,
-  /\b(racial|ethnic)\s+slur\s+patterns\b/gi, // Add actual patterns carefully
+  // slurs (obfuscated variants)
+  /n+[@a4]*g+[@a4]*g+[e3]*r*/i,
+  /k+[@a4]*k+[@a4]*/i,
+  /c+h+i+n+k+/i,
+  /s+p+i*c+/i,
+  /t+r+[@a4]n+n*y+/i,
+  /f+[@a4]g+(g*o*t+)?/i,
 ];
 
 // Bullying/harassment patterns (non-protected-class insults, direct attacks)
@@ -64,6 +72,8 @@ const PERSONAL_INFO_PATTERNS = [
   /\b\d{4}\s?\d{4}\s?\d{4}\s?\d{4}\b/g, // Credit card pattern
 ];
 
+const ZERO_WIDTH = /[\u200B-\u200D\uFEFF]/g;
+
 const normalizeContent = (content) => {
   if (typeof content !== 'string') return '';
   const mappings = {
@@ -77,9 +87,42 @@ const normalizeContent = (content) => {
   const base = content
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
+    .replace(ZERO_WIDTH, '')
     .toLowerCase();
   return base.replace(/[@$!|013457]/g, (ch) => mappings[ch] || ch);
 };
+
+const compact = (str) => str.replace(/[^a-z0-9]+/gi, '');
+const collapseRepeats = (str) => str.replace(/(.)\1{2,}/g, '$1$1');
+const deVowel = (str) => str.replace(/[aeiou]/g, '');
+
+const buildLoosePattern = (term) => {
+  const safe = term.replace(/[^a-z0-9]/gi, '');
+  const chars = safe.split('');
+  const between = '[^a-z0-9]{0,3}';
+  return new RegExp(chars.map(ch => ch.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join(between), 'i');
+};
+
+let EXTERNAL_BANNED = [];
+try {
+  if (process.env.BANNED_TERMS_PATH && fs.existsSync(process.env.BANNED_TERMS_PATH)) {
+    const raw = fs.readFileSync(process.env.BANNED_TERMS_PATH, 'utf8');
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) {
+      EXTERNAL_BANNED = parsed.filter(x => typeof x === 'string');
+    }
+  }
+} catch {}
+
+const BANNED_TERMS = Array.from(new Set([
+  // Core profanity (extendable via BANNED_TERMS_PATH)
+  ...PROFANITY_WORDS,
+  // Generic hate/harassment umbrella terms (specific slurs covered by patterns below)
+  'go die', 'kill yourself', 'worthless', 'pathetic', 'scum', 'trash',
+  ...EXTERNAL_BANNED,
+]));
+
+const BANNED_LOOSE_PATTERNS = BANNED_TERMS.map(buildLoosePattern);
 
 export const moderateContent = (content) => {
   const issues = [];
@@ -94,11 +137,19 @@ export const moderateContent = (content) => {
   };
 
   const normalized = normalizeContent(content || '');
+  const normalizedCompact = compact(normalized);
+  const normalizedCollapsed = collapseRepeats(normalizedCompact);
+  const normalizedDevowel = deVowel(normalizedCollapsed);
 
   // Check for profanity (words and obfuscated patterns)
   const profanityFound =
     PROFANITY_PATTERNS.some((pattern) => pattern.test(content) || pattern.test(normalized)) ||
-    PROFANITY_WORDS.some(word => normalized.includes(word.toLowerCase()))
+    PROFANITY_WORDS.some(word =>
+      normalized.includes(word.toLowerCase()) ||
+      normalizedCollapsed.includes(compact(word).toLowerCase()) ||
+      normalizedDevowel.includes(deVowel(word.toLowerCase()))
+    ) ||
+    BANNED_LOOSE_PATTERNS.some((rx) => rx.test(content) || rx.test(normalized))
   ;
 
   if (profanityFound) {
@@ -109,7 +160,7 @@ export const moderateContent = (content) => {
 
   // Check for hate speech
   const hateSpeechFound = HATE_SPEECH_PATTERNS.some(pattern =>
-    pattern.test(content) || pattern.test(normalized)
+    pattern.test(content) || pattern.test(normalized) || pattern.test(normalizedCollapsed)
   );
 
   if (hateSpeechFound) {
@@ -119,7 +170,7 @@ export const moderateContent = (content) => {
   }
 
   // Check for bullying/harassment
-  const bullyingFound = BULLYING_PATTERNS.some(pattern => pattern.test(content) || pattern.test(normalized));
+  const bullyingFound = BULLYING_PATTERNS.some(pattern => pattern.test(content) || pattern.test(normalized) || pattern.test(normalizedCollapsed));
   if (bullyingFound) {
     flags.bullying = true;
     flags.severity += 4;
@@ -128,7 +179,7 @@ export const moderateContent = (content) => {
 
   // Check for spam
   const spamFound = SPAM_INDICATORS.some(pattern =>
-    pattern.test(content) || pattern.test(normalized)
+    pattern.test(content) || pattern.test(normalized) || pattern.test(normalizedCollapsed)
   );
 
   if (spamFound) {
@@ -139,7 +190,7 @@ export const moderateContent = (content) => {
 
   // Check for inappropriate content
   const inappropriateFound = INAPPROPRIATE_CONTENT.some(pattern =>
-    pattern.test(content) || pattern.test(normalized)
+    pattern.test(content) || pattern.test(normalized) || pattern.test(normalizedCollapsed)
   );
 
   if (inappropriateFound) {
