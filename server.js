@@ -101,7 +101,11 @@ app.use(speedLimiter);
 // CORS configuration
 app.use(cors({
   origin: process.env.NODE_ENV === 'production'
-    ? ['https://youyesyou.com', 'https://www.youyesyou.com']
+    ? [
+        'https://youyesyou.com',
+        'https://www.youyesyou.com',
+        'https://689e9bd559d6d631db331fc4--you-yes-you.netlify.app',
+      ]
     : ['http://localhost:3000', 'http://localhost:5173'],
   credentials: true,
 }));
