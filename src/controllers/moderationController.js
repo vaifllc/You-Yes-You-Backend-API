@@ -11,6 +11,17 @@ import {
   filterPersonalInfo
 } from '../utils/moderationUtils.js';
 
+// Helper function to convert severity string to number
+function getSeverityNumber(severity) {
+  switch (severity) {
+    case 'low': return 2;
+    case 'medium': return 5;
+    case 'high': return 8;
+    case 'critical': return 10;
+    default: return 5; // Default to medium
+  }
+}
+
 // @desc    Report content with enhanced validation
 // @route   POST /api/moderation/report
 // @access  Private
@@ -157,7 +168,7 @@ export const reportContent = asyncHandler(async (req, res) => {
     reason,
     description: filterPersonalInfo(description || ''), // Remove any personal info from description
     priority,
-    severity: severity || 'medium',
+    severity: getSeverityNumber(severity || 'medium'),
     metadata: {
       reporterIP: req.ip,
       userAgent: req.get('User-Agent'),
