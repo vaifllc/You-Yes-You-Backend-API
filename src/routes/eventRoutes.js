@@ -16,31 +16,31 @@ const router = express.Router();
 // @route   GET /api/events
 // @access  Public
 router.get('/', optionalAuth, validatePagination, asyncHandler(async (req, res) => {
-  const { 
-    page = 1, 
-    limit = 10, 
-    type, 
+  const {
+    page = 1,
+    limit = 10,
+    type,
     phase,
     status = 'scheduled',
     upcoming = false,
-    search 
+    search
   } = req.query;
 
   // Build query
   const query = { status };
-  
+
   if (type && type !== 'all') {
     query.type = type;
   }
-  
+
   if (phase && phase !== 'all') {
     query.phase = phase;
   }
-  
+
   if (upcoming === 'true') {
     query.date = { $gte: new Date() };
   }
-  
+
   if (search) {
     query.$or = [
       { title: { $regex: search, $options: 'i' } },
@@ -60,10 +60,10 @@ router.get('/', optionalAuth, validatePagination, asyncHandler(async (req, res) 
   if (req.user) {
     events.forEach(event => {
       event.isUserAttending = event.attendees?.some(
-        attendee => attendee.user.toString() === req.user._id.toString() && 
+        attendee => attendee.user.toString() === req.user._id.toString() &&
                    attendee.status === 'going'
       ) || false;
-      
+
       event.userRSVPStatus = event.attendees?.find(
         attendee => attendee.user.toString() === req.user._id.toString()
       )?.status || null;
@@ -134,7 +134,7 @@ router.get('/:id', validateObjectId, optionalAuth, asyncHandler(async (req, res)
     const userRSVP = event.attendees.find(
       attendee => attendee.user._id.toString() === req.user._id.toString()
     );
-    
+
     if (userRSVP) {
       isUserAttending = userRSVP.status === 'going';
       userRSVPStatus = userRSVP.status;
@@ -156,7 +156,7 @@ router.get('/:id', validateObjectId, optionalAuth, asyncHandler(async (req, res)
 // @access  Private
 router.put('/:id/rsvp', authenticate, validateObjectId, asyncHandler(async (req, res) => {
   const { status } = req.body; // 'going', 'maybe', 'not_going'
-  
+
   if (!['going', 'maybe', 'not_going'].includes(status)) {
     return res.status(400).json({
       success: false,
@@ -205,13 +205,13 @@ router.put('/:id/rsvp', authenticate, validateObjectId, asyncHandler(async (req,
 
 // (moved above to avoid /:id catching /my-events)
 
-// Admin routes
-router.use(authorize('admin'));
+// Admin routes - must authenticate before role check
+router.use(authenticate, authorize('admin'));
 
 // @desc    Create new event
 // @route   POST /api/events
 // @access  Private (Admin)
-router.post('/', validateEvent, asyncHandler(async (req, res) => {
+router.post('/', validateEvent, handleValidationErrors, asyncHandler(async (req, res) => {
   const event = await Event.create(req.body);
 
   res.status(201).json({
@@ -224,7 +224,7 @@ router.post('/', validateEvent, asyncHandler(async (req, res) => {
 // @desc    Update event
 // @route   PUT /api/events/:id
 // @access  Private (Admin)
-router.put('/:id', validateObjectId, validateEvent, asyncHandler(async (req, res) => {
+router.put('/:id', validateObjectId, validateEvent, handleValidationErrors, asyncHandler(async (req, res) => {
   const event = await Event.findByIdAndUpdate(
     req.params.id,
     req.body,
