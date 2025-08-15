@@ -249,11 +249,11 @@ export const startConversation = asyncHandler(async (req, res) => {
     });
   }
 
-  // Emit real-time notification if io is available
-  if (io) {
+  // Emit real-time notification if io is available and we're not already emitting from above
+  if (io && !initialMessage) {
     io.to(`user_${recipientId}`).emit('new_conversation', {
       conversation,
-      initialMessage: message,
+      initialMessage: null,
     });
   }
 
