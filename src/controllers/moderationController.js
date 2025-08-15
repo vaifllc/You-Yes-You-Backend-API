@@ -48,6 +48,18 @@ export const reportContent = asyncHandler(async (req, res) => {
         content = await Post.findById(contentId).populate('author', 'name username email');
         reportedUser = content?.author;
         break;
+      case 'comment':
+        // For comments, we need to find the post and the specific comment
+        const postWithComment = await Post.findOne(
+          { 'comments._id': contentId },
+          { 'comments.$': 1, author: 1 }
+        ).populate('comments.user', 'name username email');
+
+        if (postWithComment && postWithComment.comments.length > 0) {
+          content = postWithComment.comments[0]; // The matched comment
+          reportedUser = content.user;
+        }
+        break;
       case 'message':
         content = await Message.findById(contentId).populate('sender', 'name username email');
         reportedUser = content?.sender;
@@ -59,7 +71,7 @@ export const reportContent = asyncHandler(async (req, res) => {
       default:
         return res.status(400).json({
           success: false,
-          message: 'Invalid content type. Must be: post, message, or user',
+          message: 'Invalid content type. Must be: post, comment, message, or user',
         });
     }
   } catch (error) {
