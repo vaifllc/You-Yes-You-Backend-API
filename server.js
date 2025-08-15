@@ -50,10 +50,33 @@ dotenv.config();
 
 const app = express();
 const server = createServer(app);
+
+// Shared allowlist for both Express CORS and Socket.IO CORS
+const allowedOrigins = [
+  'https://youyesyou.com',
+  'https://www.youyesyou.com',
+  'https://youyesyou.ddns.net',
+  'http://localhost:3000',
+  'http://localhost:5173',
+];
+
+// Socket.IO CORS configuration (separate from Express CORS)
 const io = new Server(server, {
   cors: {
-    origin: process.env.NODE_ENV === 'production' ? false : ['http://localhost:3000', 'http://localhost:5173'],
+    origin(origin, callback) {
+      // Allow server-to-server/no-origin requests
+      if (!origin) return callback(null, true);
+      try {
+        const host = new URL(origin).host;
+        const isAllowed = allowedOrigins.includes(origin) || /\.netlify\.app$/.test(host);
+        if (isAllowed) return callback(null, true);
+        return callback(new Error(`Socket.IO CORS blocked for origin: ${origin}`));
+      } catch (e) {
+        return callback(new Error(`Socket.IO CORS invalid origin: ${origin}`));
+      }
+    },
     methods: ['GET', 'POST'],
+    credentials: true,
   },
 });
 
@@ -99,14 +122,6 @@ app.use(limiter);
 app.use(speedLimiter);
 
 // CORS configuration
-const allowedOrigins = [
-  'https://youyesyou.com',
-  'https://www.youyesyou.com',
-  'https://youyesyou.ddns.net',
-  'http://localhost:3000',
-  'http://localhost:5173',
-];
-
 const corsOptions = {
   origin(origin, callback) {
     // Allow non-browser or same-origin requests
