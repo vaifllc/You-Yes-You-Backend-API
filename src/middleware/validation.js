@@ -230,8 +230,14 @@ export const validateCourse = [
 ];
 
 // Parameter validation
+// Accept either `:id` or `:userId` style route params
 export const validateObjectId = [
   param('id')
+    .optional()
+    .isMongoId()
+    .withMessage('Invalid ID format'),
+  param('userId')
+    .optional()
     .isMongoId()
     .withMessage('Invalid ID format'),
 
