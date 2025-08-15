@@ -1,12 +1,29 @@
 // Comprehensive content moderation utilities
 
 const PROFANITY_WORDS = [
-  // Basic profanity words - expand this list as needed
+  // General profanity
   'damn', 'hell', 'crap', 'stupid', 'idiot', 'dumb', 'moron', 'loser',
-  'bitch', 'bastard', 'asshole', 'shit', 'fuck', 'motherfucker',
-  // Racial slurs and hate speech - add comprehensive list
-  // Drug-related terms inappropriate for community
+  'bitch', 'bastard', 'asshole', 'shit', 'fuck', 'motherfucker', 'fucking',
+  'bullshit', 'douche', 'dipshit', 'jackass', 'prick', 'dick', 'dickhead',
+  'pussy', 'cunt', 'twat', 'wanker', 'slut', 'whore', 'bloody', 'wtf', 'pos',
+  // Drug-related/inappropriate
   'meth', 'crack', 'cocaine', 'heroin', 'weed', 'dealer',
+];
+
+// Common obfuscated profanity patterns (e.g., f*ck, f@ck, sh!t)
+const PROFANITY_PATTERNS = [
+  /\bf+[@*#]?[u*]?[c*]k+\b/i,            // fuck variations
+  /\bf+[@*#]?[u*]?[c*]king\b/i,         // fucking
+  /\bsh[*#!]?[i1]t+\b/i,                // shit variations
+  /\b[a@]ss[h*#]?o?l[e3]\b/i,           // asshole variations
+  /\bb[i1!]tch(e?s|y)?\b/i,              // bitch, bitches, bitchy
+  /\bd[i1!]ck(head)?\b/i,                // dick, dickhead
+  /\bc[*#]unt+\b/i,                      // cunt
+  /\bp[u*]ss[y1]+\b/i,                   // pussy
+  /\bwh[o0]re+\b/i,                      // whore
+  /\bd[o0]uche\b/i,                       // douche
+  /\bbull[*#]?shit\b/i,                  // bullshit
+  /\bwtf\b/i,                             // wtf
 ];
 
 const HATE_SPEECH_PATTERNS = [
@@ -15,6 +32,13 @@ const HATE_SPEECH_PATTERNS = [
   /\b(worthless|pathetic|scum|trash)\s+(person|human|father|man)\b/gi,
   /\b(should\s+be\s+dead|deserve\s+to\s+die)\b/gi,
   /\b(racial|ethnic)\s+slur\s+patterns\b/gi, // Add actual patterns carefully
+];
+
+// Bullying/harassment patterns (non-protected-class insults, direct attacks)
+const BULLYING_PATTERNS = [
+  /\b(you('re| are)\s+)?(idiot|stupid|moron|loser|worthless|pathetic|ugly|fat|retard)\b/gi,
+  /\b(nobody\s+likes\s+you|you\s+should\s+quit|go\s+away)\b/gi,
+  /\b(kill\s+yourself|end\s+your\s+life)\b/gi,
 ];
 
 const SPAM_INDICATORS = [
@@ -40,22 +64,43 @@ const PERSONAL_INFO_PATTERNS = [
   /\b\d{4}\s?\d{4}\s?\d{4}\s?\d{4}\b/g, // Credit card pattern
 ];
 
+const normalizeContent = (content) => {
+  if (typeof content !== 'string') return '';
+  const mappings = {
+    '@': 'a', '4': 'a',
+    '$': 's', '5': 's',
+    '0': 'o',
+    '1': 'i', '!': 'i', '|': 'i',
+    '3': 'e',
+    '7': 't',
+  };
+  const base = content
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase();
+  return base.replace(/[@$!|013457]/g, (ch) => mappings[ch] || ch);
+};
+
 export const moderateContent = (content) => {
   const issues = [];
   const flags = {
     profanity: false,
     hateSpeech: false,
+    bullying: false,
     spam: false,
     inappropriate: false,
     personalInfo: false,
     severity: 0,
   };
 
-  // Check for profanity
-  const profanityFound = PROFANITY_WORDS.some(word => 
-    content.toLowerCase().includes(word.toLowerCase())
-  );
-  
+  const normalized = normalizeContent(content || '');
+
+  // Check for profanity (words and obfuscated patterns)
+  const profanityFound =
+    PROFANITY_PATTERNS.some((pattern) => pattern.test(content) || pattern.test(normalized)) ||
+    PROFANITY_WORDS.some(word => normalized.includes(word.toLowerCase()))
+  ;
+
   if (profanityFound) {
     flags.profanity = true;
     flags.severity += 2;
@@ -63,21 +108,29 @@ export const moderateContent = (content) => {
   }
 
   // Check for hate speech
-  const hateSpeechFound = HATE_SPEECH_PATTERNS.some(pattern => 
-    pattern.test(content)
+  const hateSpeechFound = HATE_SPEECH_PATTERNS.some(pattern =>
+    pattern.test(content) || pattern.test(normalized)
   );
-  
+
   if (hateSpeechFound) {
     flags.hateSpeech = true;
     flags.severity += 5;
     issues.push('Contains hate speech');
   }
 
+  // Check for bullying/harassment
+  const bullyingFound = BULLYING_PATTERNS.some(pattern => pattern.test(content) || pattern.test(normalized));
+  if (bullyingFound) {
+    flags.bullying = true;
+    flags.severity += 4;
+    issues.push('Contains bullying or harassment');
+  }
+
   // Check for spam
-  const spamFound = SPAM_INDICATORS.some(pattern => 
-    pattern.test(content)
+  const spamFound = SPAM_INDICATORS.some(pattern =>
+    pattern.test(content) || pattern.test(normalized)
   );
-  
+
   if (spamFound) {
     flags.spam = true;
     flags.severity += 3;
@@ -85,10 +138,10 @@ export const moderateContent = (content) => {
   }
 
   // Check for inappropriate content
-  const inappropriateFound = INAPPROPRIATE_CONTENT.some(pattern => 
-    pattern.test(content)
+  const inappropriateFound = INAPPROPRIATE_CONTENT.some(pattern =>
+    pattern.test(content) || pattern.test(normalized)
   );
-  
+
   if (inappropriateFound) {
     flags.inappropriate = true;
     flags.severity += 4;
@@ -96,10 +149,10 @@ export const moderateContent = (content) => {
   }
 
   // Check for personal information sharing
-  const personalInfoFound = PERSONAL_INFO_PATTERNS.some(pattern => 
-    pattern.test(content)
+  const personalInfoFound = PERSONAL_INFO_PATTERNS.some(pattern =>
+    pattern.test(content) || pattern.test(normalized)
   );
-  
+
   if (personalInfoFound) {
     flags.personalInfo = true;
     flags.severity += 3;
@@ -122,7 +175,8 @@ export const moderateContent = (content) => {
 
   return {
     isClean: flags.severity === 0,
-    shouldBlock: flags.severity >= 5,
+    // Strict blocking for profanity, hate speech, bullying, nudity/sexual content
+    shouldBlock: flags.profanity || flags.hateSpeech || flags.bullying || flags.inappropriate,
     shouldFlag: flags.severity >= 3,
     flags,
     issues,
@@ -133,17 +187,17 @@ export const moderateContent = (content) => {
 
 export const filterProfanity = (content) => {
   let filtered = content;
-  
+
   PROFANITY_WORDS.forEach(word => {
     const regex = new RegExp(`\\b${word}\\b`, 'gi');
     filtered = filtered.replace(regex, '*'.repeat(word.length));
   });
-  
+
   // Filter personal information
   PERSONAL_INFO_PATTERNS.forEach(pattern => {
     filtered = filtered.replace(pattern, '[PERSONAL INFO REMOVED]');
   });
-  
+
   return filtered;
 };
 
@@ -152,13 +206,13 @@ export const analyzeUserBehavior = async (userId, User, Post, Report) => {
   if (!user) return null;
 
   // Get user's recent activity
-  const recentPosts = await Post.find({ 
-    author: userId, 
-    createdAt: { $gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) } 
+  const recentPosts = await Post.find({
+    author: userId,
+    createdAt: { $gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) }
   });
 
   // Get reports against this user
-  const reports = await Report.find({ 
+  const reports = await Report.find({
     reportedUser: userId,
     createdAt: { $gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) }
   });
@@ -195,7 +249,7 @@ const calculateRiskScore = (user, recentPosts, reports) => {
   score += (user.warnings?.length || 0) * 3;
 
   // Low engagement score (no likes, comments)
-  const hasLowEngagement = recentPosts.every(post => 
+  const hasLowEngagement = recentPosts.every(post =>
     (post.likes?.length || 0) === 0 && (post.comments?.length || 0) === 0
   );
   if (hasLowEngagement && recentPosts.length > 5) score += 2;
@@ -216,7 +270,7 @@ const generateRecommendations = (riskScore, reports) => {
     recommendations.push('Monitor closely for 48 hours');
   }
 
-  const recentReports = reports.filter(report => 
+  const recentReports = reports.filter(report =>
     Date.now() - report.createdAt.getTime() < 7 * 24 * 60 * 60 * 1000
   );
 

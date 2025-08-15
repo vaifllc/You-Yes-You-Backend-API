@@ -4,13 +4,13 @@ import { moderateContent } from '../utils/moderationUtils.js';
 export const moderateContentMiddleware = (contentField = 'content') => {
   return (req, res, next) => {
     const content = req.body[contentField];
-    
+
     if (!content) {
       return next(); // No content to moderate
     }
 
     const moderation = moderateContent(content);
-    
+
     // Block content that should be blocked
     if (moderation.shouldBlock) {
       return res.status(400).json({
@@ -44,7 +44,7 @@ export const moderateContentMiddleware = (contentField = 'content') => {
 // Middleware for posts (also checks images if present)
 export const moderatePostContent = (req, res, next) => {
   const { content, images } = req.body;
-  
+
   if (!content) {
     return res.status(400).json({
       success: false,
@@ -53,9 +53,15 @@ export const moderatePostContent = (req, res, next) => {
   }
 
   const moderation = moderateContent(content);
-  
+
   // Block inappropriate content
   if (moderation.shouldBlock) {
+    console.warn('🚫 Post blocked by moderation', {
+      user: req.user?.username,
+      path: req.originalUrl,
+      issues: moderation.issues,
+      severity: moderation.severity,
+    });
     return res.status(400).json({
       success: false,
       message: 'Post violates community guidelines and cannot be published',
@@ -70,6 +76,22 @@ export const moderatePostContent = (req, res, next) => {
       return res.status(400).json({
         success: false,
         message: 'Maximum 5 images allowed per post',
+      });
+    }
+
+    // Disallow nudity/explicit content via filename/URL heuristics
+    const nudityPattern = /(nude|naked|porn|xxx|nsfw|explicit|sex|erotic)/i;
+    const hasNudity = images.some((img) =>
+      typeof img === 'string' ? nudityPattern.test(img) : false
+    );
+    if (hasNudity) {
+      console.warn('🚫 Post images blocked for nudity keywords', {
+        user: req.user?.username,
+        path: req.originalUrl,
+      });
+      return res.status(400).json({
+        success: false,
+        message: 'Post images violate community guidelines (nudity is not allowed)',
       });
     }
   }
@@ -98,7 +120,7 @@ export const moderatePostContent = (req, res, next) => {
 // Middleware for comments
 export const moderateCommentContent = (req, res, next) => {
   const { content } = req.body;
-  
+
   if (!content) {
     return res.status(400).json({
       success: false,
@@ -107,9 +129,15 @@ export const moderateCommentContent = (req, res, next) => {
   }
 
   const moderation = moderateContent(content);
-  
+
   // Block inappropriate comments immediately
   if (moderation.shouldBlock) {
+    console.warn('🚫 Comment blocked by moderation', {
+      user: req.user?.username,
+      path: req.originalUrl,
+      issues: moderation.issues,
+      severity: moderation.severity,
+    });
     return res.status(400).json({
       success: false,
       message: 'Comment violates community guidelines',
@@ -138,16 +166,35 @@ export const moderateCommentContent = (req, res, next) => {
 // Middleware for messages
 export const moderateMessageContent = (req, res, next) => {
   const { content, type = 'text' } = req.body;
-  
-  // Only moderate text messages
-  if (type !== 'text' || !content) {
+
+  // If image/file message, apply a basic nudity filename/URL heuristic if content is provided
+  if (type !== 'text') {
+    if (typeof content === 'string' && content.length > 0) {
+      const nudityPattern = /(nude|naked|porn|xxx|nsfw|explicit|sex|erotic)/i;
+      if (nudityPattern.test(content)) {
+        console.warn('🚫 Message blocked for nudity keywords', {
+          user: req.user?.username,
+          path: req.originalUrl,
+        });
+        return res.status(400).json({
+          success: false,
+          message: 'Message violates community guidelines (nudity is not allowed)',
+        });
+      }
+    }
     return next();
   }
 
   const moderation = moderateContent(content);
-  
+
   // Block inappropriate messages
   if (moderation.shouldBlock) {
+    console.warn('🚫 Message blocked by moderation', {
+      user: req.user?.username,
+      path: req.originalUrl,
+      issues: moderation.issues,
+      severity: moderation.severity,
+    });
     return res.status(400).json({
       success: false,
       message: 'Message violates community guidelines',
@@ -177,13 +224,13 @@ export const moderateMessageContent = (req, res, next) => {
 export const checkUserStatus = async (req, res, next) => {
   try {
     const user = req.user;
-    
+
     if (!user) {
       return next(); // Let auth middleware handle this
     }
 
     // Check for active ban
-    const activeBan = user.warnings?.find(warning => 
+    const activeBan = user.warnings?.find(warning =>
       warning.type === 'banned' && warning.isActive
     );
 
@@ -197,9 +244,9 @@ export const checkUserStatus = async (req, res, next) => {
     }
 
     // Check for active suspension
-    const activeSuspension = user.warnings?.find(warning => 
-      warning.type === 'suspension' && 
-      warning.isActive && 
+    const activeSuspension = user.warnings?.find(warning =>
+      warning.type === 'suspension' &&
+      warning.isActive &&
       warning.expiresAt > new Date()
     );
 
@@ -225,7 +272,7 @@ export const logModerationAction = (action) => {
   return (req, res, next) => {
     // Store original json method
     const originalJson = res.json;
-    
+
     // Override json method to log after response
     res.json = function(data) {
       // Log moderation action if content was flagged
@@ -237,11 +284,11 @@ export const logModerationAction = (action) => {
           timestamp: new Date().toISOString(),
         });
       }
-      
+
       // Call original json method
       return originalJson.call(this, data);
     };
-    
+
     next();
   };
 };

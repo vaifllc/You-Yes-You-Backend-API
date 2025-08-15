@@ -2,8 +2,11 @@ export const errorHandler = (err, req, res, next) => {
   let error = { ...err };
   error.message = err.message;
 
-  // Log error for debugging
-  console.error('Error:', err);
+  // Avoid noisy logs for 404s and client errors
+  const status = error.statusCode || res.statusCode || 500;
+  if (status >= 500) {
+    console.error('Error:', err);
+  }
 
   // Mongoose bad ObjectId
   if (err.name === 'CastError') {
@@ -77,9 +80,16 @@ export const errorHandler = (err, req, res, next) => {
 };
 
 export const notFound = (req, res, next) => {
-  const error = new Error(`Not found - ${req.originalUrl}`);
-  res.status(404);
-  next(error);
+  // Quietly handle common bot scanner paths (e.g., .php/.aspx)
+  const noisy = /(\.php|\.asp|\.aspx|\.env|wp-admin|wp-login|\.git)/i.test(req.originalUrl);
+  if (noisy) {
+    return res.status(404).json({ success: false, message: 'Not found' });
+  }
+
+  return res.status(404).json({
+    success: false,
+    message: `Not found - ${req.originalUrl}`,
+  });
 };
 
 // Async error handler wrapper
