@@ -107,46 +107,7 @@ router.get('/', optionalAuth, validatePagination, asyncHandler(async (req, res) 
   });
 }));
 
-// @desc    Get single course
-// @route   GET /api/courses/:id
-// @access  Public
-router.get('/:id', validateObjectId, optionalAuth, asyncHandler(async (req, res) => {
-  const course = await Course.findById(req.params.id);
-
-  if (!course) {
-    return res.status(404).json({
-      success: false,
-      message: 'Course not found',
-    });
-  }
-
-  // Check if user is enrolled
-  let isEnrolled = false;
-  let userProgress = 0;
-  let completedModules = [];
-
-  if (req.user) {
-    const userCourse = req.user.courses.find(
-      uc => uc.courseId.toString() === course._id.toString()
-    );
-
-    if (userCourse) {
-      isEnrolled = true;
-      userProgress = userCourse.progress;
-      completedModules = userCourse.completedModules;
-    }
-  }
-
-  res.status(200).json({
-    success: true,
-    data: {
-      ...course.toJSON(),
-      isEnrolled,
-      userProgress,
-      completedModules,
-    },
-  });
-}));
+// NOTE: Place static routes BEFORE parameterized ones to avoid collisions (e.g., /my-courses vs /:id)
 
 // @desc    Enroll in course
 // @route   POST /api/courses/:id/enroll
@@ -292,6 +253,8 @@ router.get('/my-courses', authenticate, asyncHandler(async (req, res) => {
 // @desc    Get course module
 // @route   GET /api/courses/:courseId/modules/:moduleId
 // @access  Private
+// @desc    Get course module
+// (kept before /:id to avoid conflicts and ensure specific route matching)
 router.get('/:courseId/modules/:moduleId',
   authenticate,
   [
@@ -344,6 +307,47 @@ router.get('/:courseId/modules/:moduleId',
     });
   })
 );
+
+// @desc    Get single course
+// @route   GET /api/courses/:id
+// @access  Public
+router.get('/:id', validateObjectId, optionalAuth, asyncHandler(async (req, res) => {
+  const course = await Course.findById(req.params.id);
+
+  if (!course) {
+    return res.status(404).json({
+      success: false,
+      message: 'Course not found',
+    });
+  }
+
+  // Check if user is enrolled
+  let isEnrolled = false;
+  let userProgress = 0;
+  let completedModules = [];
+
+  if (req.user) {
+    const userCourse = req.user.courses.find(
+      uc => uc.courseId.toString() === course._id.toString()
+    );
+
+    if (userCourse) {
+      isEnrolled = true;
+      userProgress = userCourse.progress;
+      completedModules = userCourse.completedModules;
+    }
+  }
+
+  res.status(200).json({
+    success: true,
+    data: {
+      ...course.toJSON(),
+      isEnrolled,
+      userProgress,
+      completedModules,
+    },
+  });
+}));
 
 // Admin routes for course management
 router.use(authorize('admin'));
