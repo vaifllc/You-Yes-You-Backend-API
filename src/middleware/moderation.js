@@ -160,10 +160,21 @@ export const moderateCommentContent = async (req, res, next) => {
 
   // For updates, we're more permissive - only block the worst content
   const shouldBlockComment = isUpdate ?
-    // For updates, only block if it contains hate speech
-    moderation.flags.hateSpeech :
+    // For updates, only block if it contains hate speech or has high severity
+    (moderation.flags.hateSpeech && moderation.severity >= 4) :
     // For new comments, use the normal moderation rules
     moderation.shouldBlock;
+
+  // Debug logging to understand what's happening
+  console.log('Comment moderation debug:', {
+    content: content.substring(0, 50),
+    isUpdate,
+    shouldBlock: moderation.shouldBlock,
+    shouldBlockComment,
+    flags: moderation.flags,
+    issues: moderation.issues,
+    severity: moderation.severity
+  });
 
   // Block inappropriate comments immediately
   if (shouldBlockComment) {
