@@ -144,6 +144,7 @@ export const moderatePostContent = async (req, res, next) => {
 // Middleware for comments
 export const moderateCommentContent = async (req, res, next) => {
   const { content } = req.body;
+  const isUpdate = req.method === 'PUT';
 
   if (!content) {
     return res.status(400).json({
@@ -152,10 +153,20 @@ export const moderateCommentContent = async (req, res, next) => {
     });
   }
 
+  // Debug log for comment content
+  console.log(`Processing ${isUpdate ? 'update to' : 'new'} comment: "${content.substring(0, 50)}${content.length > 50 ? '...' : ''}"`);
+
   const moderation = moderateContent(content);
 
+  // For updates, we're more permissive - only block the worst content
+  const shouldBlockComment = isUpdate ?
+    // For updates, only block if it contains hate speech
+    moderation.flags.hateSpeech :
+    // For new comments, use the normal moderation rules
+    moderation.shouldBlock;
+
   // Block inappropriate comments immediately
-  if (moderation.shouldBlock) {
+  if (shouldBlockComment) {
     console.warn('🚫 Comment blocked by moderation', {
       user: req.user?.username,
       path: req.originalUrl,
