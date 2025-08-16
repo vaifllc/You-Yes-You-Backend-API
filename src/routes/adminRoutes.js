@@ -156,7 +156,7 @@ router.get('/users', validatePagination, asyncHandler(async (req, res) => {
 // @route   PUT /api/admin/users/:id
 // @access  Private (Admin)
 router.put('/users/:id', validateObjectId, asyncHandler(async (req, res) => {
-  const { role, phase, points, level } = req.body;
+  const { role, phase, points, level, email, name, username, bio, location, emailVerified, isBanned, isSuspended } = req.body;
 
   const user = await User.findById(req.params.id);
 
@@ -191,6 +191,21 @@ router.put('/users/:id', validateObjectId, asyncHandler(async (req, res) => {
 
   if (level && ['New Member', 'Builder', 'Overcomer', 'Mentor-in-Training', 'Legacy Leader'].includes(level)) {
     user.level = level;
+  }
+
+  if (typeof email === 'string' && email.trim()) user.email = email.trim();
+  if (typeof name === 'string' && name.trim()) user.name = name.trim();
+  if (typeof username === 'string' && username.trim()) user.username = username.trim();
+  if (typeof bio === 'string') user.bio = bio;
+  if (typeof location === 'string') user.location = location;
+  if (typeof emailVerified === 'boolean') user.emailVerified = emailVerified;
+
+  // Account status controls
+  if (isBanned === true) {
+    user.warnings.push({ type: 'banned', reason: 'Admin ban', issuedBy: req.user._id, issuedAt: new Date(), isActive: true });
+  }
+  if (isSuspended === true) {
+    user.warnings.push({ type: 'suspension', reason: 'Admin suspension', issuedBy: req.user._id, issuedAt: new Date(), isActive: true, expiresAt: new Date(Date.now() + 7*24*60*60*1000) });
   }
 
   await user.save();
