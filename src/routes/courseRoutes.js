@@ -349,7 +349,8 @@ router.get('/:id', validateObjectId, optionalAuth, asyncHandler(async (req, res)
   });
 }));
 
-// Admin routes for course management
+// Admin routes for course management (must authenticate before role check)
+router.use(authenticate);
 router.use(authorize('admin'));
 
 // @desc    Create new course
