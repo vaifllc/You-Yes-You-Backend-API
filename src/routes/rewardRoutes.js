@@ -6,6 +6,7 @@ import {
   getUserRewards,
   createReward,
   updateReward,
+  deleteReward,
   getRewardClaims,
 } from '../controllers/rewardController.js';
 import { authenticate, authorize } from '../middleware/auth.js';
@@ -55,7 +56,7 @@ router.post('/', [
   body('category')
     .isIn([
       'Course Access',
-      'Certificates', 
+      'Certificates',
       'Merchandise',
       'Gift Cards',
       'Books',
@@ -71,5 +72,6 @@ router.post('/', [
 ], createReward);
 
 router.put('/:id', validateObjectId, updateReward);
+router.delete('/:id', validateObjectId, deleteReward);
 
 export default router;

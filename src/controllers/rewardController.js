@@ -6,18 +6,18 @@ import { asyncHandler } from '../middleware/errorHandler.js';
 // @route   GET /api/rewards
 // @access  Private
 export const getRewards = asyncHandler(async (req, res) => {
-  const { 
-    page = 1, 
-    limit = 12, 
-    type, 
+  const {
+    page = 1,
+    limit = 12,
+    type,
     category,
     available = true,
-    search 
+    search
   } = req.query;
 
   // Build query
   const query = {};
-  
+
   if (available === 'true') {
     query['availability.isActive'] = true;
     const now = new Date();
@@ -34,15 +34,15 @@ export const getRewards = asyncHandler(async (req, res) => {
       }
     ];
   }
-  
+
   if (type && type !== 'all') {
     query.type = type;
   }
-  
+
   if (category && category !== 'all') {
     query.category = category;
   }
-  
+
   if (search) {
     query.$or = [
       { name: { $regex: search, $options: 'i' } },
@@ -225,6 +225,27 @@ export const updateReward = asyncHandler(async (req, res) => {
     success: true,
     message: 'Reward updated successfully',
     data: reward,
+  });
+});
+
+// @desc    Delete reward
+// @route   DELETE /api/rewards/:id
+// @access  Private (Admin)
+export const deleteReward = asyncHandler(async (req, res) => {
+  const reward = await Reward.findById(req.params.id);
+
+  if (!reward) {
+    return res.status(404).json({
+      success: false,
+      message: 'Reward not found',
+    });
+  }
+
+  await reward.deleteOne();
+
+  res.status(200).json({
+    success: true,
+    message: 'Reward deleted successfully',
   });
 });
 
