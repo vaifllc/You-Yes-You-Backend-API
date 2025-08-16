@@ -2,6 +2,7 @@ import Report from '../models/Report.js';
 import Post from '../models/Post.js';
 import User from '../models/User.js';
 import { Message } from '../models/Message.js';
+import Notification from '../models/Notification.js';
 import { asyncHandler } from '../middleware/errorHandler.js';
 import {
   moderateContent,
@@ -329,7 +330,7 @@ export const getReports = asyncHandler(async (req, res) => {
     sortObj.priority = -1;
   }
 
-  const reports = await Report.find(query)
+  let reports = await Report.find(query)
     .populate('reporter', 'name username avatar')
     .populate('reportedUser', 'name username avatar moderationStatus')
     .populate('resolution.resolvedBy', 'name username')
@@ -337,6 +338,27 @@ export const getReports = asyncHandler(async (req, res) => {
     .sort(sortObj)
     .limit(limit * 1)
     .skip((page - 1) * limit);
+
+  // Attach content details for context
+  const contentEnriched = await Promise.all(reports.map(async (r) => {
+    let contentDetails = null;
+    try {
+      if (r.contentType === 'post') {
+        const post = await Post.findById(r.contentId).populate('author', 'name username avatar').select('content author createdAt');
+        if (post) contentDetails = { content: post.content, author: post.author, createdAt: post.createdAt, type: 'post' };
+      } else if (r.contentType === 'message') {
+        const msg = await Message.findById(r.contentId).populate('sender', 'name username avatar').select('message sender createdAt');
+        if (msg) contentDetails = { content: msg.message, author: msg.sender, createdAt: msg.createdAt, type: 'message' };
+      } else if (r.contentType === 'comment') {
+        const postWithComment = await Post.findOne({ 'comments._id': r.contentId }, { 'comments.$': 1, author: 1 }).populate('comments.user', 'name username avatar');
+        const comment = postWithComment?.comments?.[0];
+        if (comment) contentDetails = { content: comment.content || comment.text, author: comment.user, createdAt: comment.createdAt, type: 'comment' };
+      }
+    } catch {}
+    return { ...r.toObject(), contentDetails };
+  }));
+
+  reports = contentEnriched;
 
   const total = await Report.countDocuments(query);
 
@@ -372,7 +394,6 @@ export const handleReport = asyncHandler(async (req, res) => {
     'shadow_ban',
     'restrict_posting',
     'require_approval',
-    'escalate',
     'mark_spam',
     'educational_intervention',
     'custom'
@@ -479,9 +500,7 @@ export const handleReport = asyncHandler(async (req, res) => {
       await report.resolve(req.user._id, 'Educational intervention applied', reason);
       break;
 
-    case 'escalate':
-      await report.escalate(req.user._id, reason);
-      break;
+    // escalate removed from admin actions for now
 
     case 'custom':
       if (!customAction) {
