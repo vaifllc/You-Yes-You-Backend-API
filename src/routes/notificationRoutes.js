@@ -1,5 +1,6 @@
 import express from 'express';
 import Notification from '../models/Notification.js';
+import User from '../models/User.js';
 import { authenticate, authorize } from '../middleware/auth.js';
 import { asyncHandler } from '../middleware/errorHandler.js';
 import {
@@ -18,24 +19,24 @@ router.use(authenticate);
 // @route   GET /api/notifications
 // @access  Private
 router.get('/', validatePagination, asyncHandler(async (req, res) => {
-  const { 
-    page = 1, 
-    limit = 20, 
+  const {
+    page = 1,
+    limit = 20,
     type,
     isRead,
-    priority 
+    priority
   } = req.query;
 
   const query = { recipient: req.user._id };
-  
+
   if (type && type !== 'all') {
     query.type = type;
   }
-  
+
   if (isRead !== undefined) {
     query.isRead = isRead === 'true';
   }
-  
+
   if (priority && priority !== 'all') {
     query.priority = priority;
   }
@@ -168,7 +169,7 @@ router.get('/preferences', asyncHandler(async (req, res) => {
 
   res.status(200).json({
     success: true,
-    data: user.notificationPreferences || defaultPreferences,
+    data: (user && user.notificationPreferences) ? user.notificationPreferences : defaultPreferences,
   });
 }));
 
@@ -183,7 +184,7 @@ router.put('/preferences', [
   const { email, push } = req.body;
 
   const user = await User.findById(req.user._id);
-  
+
   if (!user.notificationPreferences) {
     user.notificationPreferences = {};
   }
@@ -253,7 +254,7 @@ router.get('/analytics', asyncHandler(async (req, res) => {
 
   let dateFilter = {};
   const now = new Date();
-  
+
   switch (timeframe) {
     case '7d':
       dateFilter = { $gte: new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000) };
