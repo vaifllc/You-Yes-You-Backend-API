@@ -95,18 +95,18 @@ router.get('/dashboard', asyncHandler(async (req, res) => {
 // @route   GET /api/admin/users
 // @access  Private (Admin)
 router.get('/users', validatePagination, asyncHandler(async (req, res) => {
-  const { 
-    page = 1, 
-    limit = 20, 
-    search, 
-    phase, 
+  const {
+    page = 1,
+    limit = 20,
+    search,
+    phase,
     role,
-    status = 'all' 
+    status = 'all'
   } = req.query;
 
   // Build query
   const query = {};
-  
+
   if (search) {
     query.$or = [
       { name: { $regex: search, $options: 'i' } },
@@ -114,11 +114,11 @@ router.get('/users', validatePagination, asyncHandler(async (req, res) => {
       { email: { $regex: search, $options: 'i' } },
     ];
   }
-  
+
   if (phase && phase !== 'all') {
     query.phase = phase;
   }
-  
+
   if (role && role !== 'all') {
     query.role = role;
   }
@@ -171,15 +171,15 @@ router.put('/users/:id', validateObjectId, asyncHandler(async (req, res) => {
   if (role && ['user', 'admin'].includes(role)) {
     user.role = role;
   }
-  
+
   if (phase && ['Phase 1', 'Phase 2', 'Phase 3'].includes(phase)) {
     user.phase = phase;
   }
-  
+
   if (points !== undefined && points >= 0) {
     const pointsDiff = points - user.points;
     user.points = points;
-    
+
     if (pointsDiff !== 0) {
       user.pointsHistory.push({
         action: 'Admin adjustment',
@@ -188,7 +188,7 @@ router.put('/users/:id', validateObjectId, asyncHandler(async (req, res) => {
       });
     }
   }
-  
+
   if (level && ['New Member', 'Builder', 'Overcomer', 'Mentor-in-Training', 'Legacy Leader'].includes(level)) {
     user.level = level;
   }
@@ -302,7 +302,7 @@ router.get('/analytics', asyncHandler(async (req, res) => {
   // Calculate date range
   let dateRange = {};
   const now = new Date();
-  
+
   switch (timeframe) {
     case '7d':
       dateRange = { $gte: new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000) };
@@ -336,7 +336,7 @@ router.get('/analytics', asyncHandler(async (req, res) => {
       },
       { $sort: { _id: 1 } }
     ]),
-    
+
     // Post activity
     Post.aggregate([
       { $match: { createdAt: dateRange } },
@@ -348,7 +348,7 @@ router.get('/analytics', asyncHandler(async (req, res) => {
       },
       { $sort: { _id: 1 } }
     ]),
-    
+
     // Course engagement
     User.aggregate([
       { $unwind: '$courses' },
@@ -362,7 +362,7 @@ router.get('/analytics', asyncHandler(async (req, res) => {
       },
       { $sort: { _id: 1 } }
     ]),
-    
+
     // Event attendance
     Event.aggregate([
       { $match: { date: dateRange } },
@@ -375,7 +375,7 @@ router.get('/analytics', asyncHandler(async (req, res) => {
       },
       { $sort: { _id: 1 } }
     ]),
-    
+
     // Top post categories
     Post.aggregate([
       { $match: { createdAt: dateRange, isApproved: true } },
@@ -421,7 +421,7 @@ router.put('/users/bulk', asyncHandler(async (req, res) => {
   // Validate update fields
   const allowedFields = ['role', 'phase', 'level'];
   const updateFields = {};
-  
+
   Object.keys(updates).forEach(key => {
     if (allowedFields.includes(key)) {
       updateFields[key] = updates[key];

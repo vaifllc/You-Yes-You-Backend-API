@@ -213,6 +213,14 @@ export const reportContent = asyncHandler(async (req, res) => {
 export const getModerationDashboard = asyncHandler(async (req, res) => {
   const stats = await getModerationStats(Post, Report, User);
 
+  // Ensure summary counts are present for client (pending/resolved/dismissed)
+  const [totalReports, pendingCount, resolvedCount, dismissedCount] = await Promise.all([
+    Report.countDocuments({}),
+    Report.countDocuments({ status: 'pending' }),
+    Report.countDocuments({ status: 'resolved' }),
+    Report.countDocuments({ status: 'dismissed' }),
+  ]);
+
   // Get recent reports with enhanced data
   const recentReports = await Report.find()
     .populate('reporter', 'name username avatar')
@@ -248,6 +256,12 @@ export const getModerationDashboard = asyncHandler(async (req, res) => {
     success: true,
     data: {
       overview: stats,
+      stats: {
+        totalReports,
+        pending: pendingCount,
+        resolved: resolvedCount,
+        dismissed: dismissedCount,
+      },
       recentReports,
       highPriorityReports,
       escalatedReports,
