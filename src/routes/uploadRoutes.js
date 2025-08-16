@@ -30,7 +30,7 @@ const avatarUpload = multer({
 const generalUpload = multer({
   storage: multer.memoryStorage(),
   limits: {
-    fileSize: 50 * 1024 * 1024, // 50MB limit to allow short videos
+    fileSize: 200 * 1024 * 1024, // 200MB limit to allow longer recordings
   },
   fileFilter: (req, file, cb) => {
     const isImage = file.mimetype.startsWith('image/');
