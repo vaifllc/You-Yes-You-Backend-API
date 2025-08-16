@@ -87,6 +87,39 @@ const PORT = process.env.PORT || 5000;
 // If running behind a proxy/load balancer (NGINX, ALB, etc.), trust the proxy
 // so Express and rate-limit can read X-Forwarded-* headers safely
 app.set('trust proxy', process.env.TRUST_PROXY ? Number(process.env.TRUST_PROXY) : 1);
+
+// CORS configuration (place BEFORE any rate limiting or other middleware that might short-circuit requests)
+const corsOptions = {
+  origin(origin, callback) {
+    // Allow non-browser or same-origin requests
+    if (!origin) return callback(null, true);
+
+    try {
+      const url = new URL(origin);
+      const host = url.host; // includes hostname:port if any
+      const hostname = url.hostname;
+
+      const isAllowed =
+        allowedOrigins.includes(origin) ||
+        hostname === 'localhost' ||
+        hostname === '127.0.0.1' ||
+        /\.(netlify)\.app$/.test(host);
+
+      if (isAllowed) return callback(null, true);
+      return callback(new Error(`CORS blocked for origin: ${origin}`));
+    } catch (e) {
+      return callback(new Error(`CORS invalid origin: ${origin}`));
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  optionsSuccessStatus: 204,
+};
+
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions));
+
 app.use(helmet());
 app.use(compression());
 
@@ -100,7 +133,7 @@ if (process.env.BANNED_TERMS_PATH) {
   console.log('📝 External banned terms file:', process.env.BANNED_TERMS_PATH);
 }
 
-// Rate limiting
+// Rate limiting (place AFTER CORS so preflight requests are handled properly)
 const limiter = rateLimit({
   windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000, // 15 minutes
   max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 100,
@@ -121,27 +154,6 @@ const speedLimiter = slowDown({
 
 app.use(limiter);
 app.use(speedLimiter);
-
-// CORS configuration
-const corsOptions = {
-  origin(origin, callback) {
-    // Allow non-browser or same-origin requests
-    if (!origin) return callback(null, true);
-
-    const isAllowed =
-      allowedOrigins.includes(origin) ||
-      /\.netlify\.app$/.test(new URL(origin).host); // any *.netlify.app
-
-    if (isAllowed) return callback(null, true);
-    return callback(new Error(`CORS blocked for origin: ${origin}`));
-  },
-  credentials: true,
-  methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
-  optionsSuccessStatus: 204,
-};
-
-app.use(cors(corsOptions));
-app.options('*', cors(corsOptions));
 
 // Body parsing middleware
 app.use(express.json({ limit: '10mb' }));
