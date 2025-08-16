@@ -1,6 +1,10 @@
 import { Message, Conversation } from '../models/Message.js';
 import User from '../models/User.js';
+import Post from '../models/Post.js';
+import Report from '../models/Report.js';
 import { asyncHandler } from '../middleware/errorHandler.js';
+import { v2 as cloudinary } from 'cloudinary';
+import { analyzeUserBehavior } from '../utils/moderationUtils.js';
 
 // Note: io will be passed from server.js to avoid circular dependency
 let io;
@@ -176,13 +180,145 @@ export const sendMessage = asyncHandler(async (req, res) => {
     }
   });
 
+  // Analyze user behavior if content was flagged for high severity
+  if (req.contentModeration?.flagged && req.contentModeration.severity >= 6) {
+    try {
+      const behaviorAnalysis = await analyzeUserBehavior(req.user._id, User, Post, Report);
+      if (behaviorAnalysis && (behaviorAnalysis.riskLevel === 'HIGH' || behaviorAnalysis.riskLevel === 'CRITICAL')) {
+        console.warn('🚨 High-risk user detected in messaging:', {
+          userId: req.user._id,
+          username: req.user.username,
+          riskLevel: behaviorAnalysis.riskLevel,
+          riskScore: behaviorAnalysis.riskScore,
+          messageContent: req.contentModeration.originalContent?.substring(0, 100),
+          severity: req.contentModeration.severity,
+          issues: req.contentModeration.issues,
+        });
+      }
+    } catch (error) {
+      console.error('Error analyzing user behavior:', error);
+    }
+  }
+
   res.status(201).json({
     success: true,
     message: req.contentModeration?.flagged
       ? 'Message sent (content filtered)'
       : 'Message sent successfully',
     data: message,
+    moderation: req.contentModeration ? {
+      flagged: req.contentModeration.flagged,
+      issues: req.contentModeration.issues || [],
+      severity: req.contentModeration.severity || 0,
+    } : null,
   });
+});
+
+// @desc    Send message with file attachment
+// @route   POST /api/messages/conversations/:id/file
+// @access  Private
+export const sendMessageWithFile = asyncHandler(async (req, res) => {
+  const { content = '', type = 'file' } = req.body;
+
+  if (!req.file) {
+    return res.status(400).json({
+      success: false,
+      message: 'No file provided',
+    });
+  }
+
+  const conversation = await Conversation.findById(req.params.id)
+    .populate('participants.user', 'name username');
+
+  if (!conversation) {
+    return res.status(404).json({
+      success: false,
+      message: 'Conversation not found',
+    });
+  }
+
+  // Check if user is participant
+  const isParticipant = conversation.participants.some(
+    p => p.user._id.toString() === req.user._id.toString() && p.isActive
+  );
+
+  if (!isParticipant) {
+    return res.status(403).json({
+      success: false,
+      message: 'Access denied to this conversation',
+    });
+  }
+
+  try {
+    // Upload file to Cloudinary
+    const base64File = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`;
+    const uploadResult = await cloudinary.uploader.upload(base64File, {
+      folder: 'youyesyou/messages',
+      resource_type: 'auto', // Automatically detect file type
+      public_id: `message_${Date.now()}_${req.user._id}`,
+    });
+
+    // Determine message type based on file mimetype
+    let messageType = type;
+    if (req.file.mimetype.startsWith('image/')) {
+      messageType = 'image';
+    } else if (req.file.mimetype.startsWith('video/')) {
+      messageType = 'video';
+    } else {
+      messageType = 'file';
+    }
+
+    // Create message with file attachment
+    const message = await Message.create({
+      conversation: req.params.id,
+      sender: req.user._id,
+      content: content || req.file.originalname,
+      type: messageType,
+      mediaUrl: uploadResult.secure_url,
+      mediaPublicId: uploadResult.public_id,
+      fileName: req.file.originalname,
+      fileSize: req.file.size,
+      mimeType: req.file.mimetype,
+    });
+
+    // Update conversation last activity and message
+    conversation.lastActivity = new Date();
+    conversation.lastMessage = message._id;
+    await conversation.save();
+
+    // Populate sender info
+    await message.populate('sender', 'name username avatar');
+
+    // Emit real-time message to conversation participants
+    conversation.participants.forEach(participant => {
+      if (participant.user._id.toString() !== req.user._id.toString()) {
+        io.to(`user_${participant.user._id}`).emit('new_message', {
+          conversationId: conversation._id,
+          message,
+        });
+      }
+    });
+
+    res.status(201).json({
+      success: true,
+      message: req.contentModeration?.flagged
+        ? 'File sent (content filtered)'
+        : 'File sent successfully',
+      data: message,
+      moderation: req.contentModeration ? {
+        flagged: req.contentModeration.flagged,
+        issues: req.contentModeration.issues || [],
+        severity: req.contentModeration.severity || 0,
+      } : null,
+    });
+
+  } catch (error) {
+    console.error('File upload error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to upload file',
+    });
+  }
 });
 
 // @desc    Start new conversation
@@ -341,6 +477,11 @@ export const editMessage = asyncHandler(async (req, res) => {
       ? 'Message updated (content filtered)'
       : 'Message updated successfully',
     data: message,
+    moderation: req.contentModeration ? {
+      flagged: req.contentModeration.flagged,
+      issues: req.contentModeration.issues || [],
+      severity: req.contentModeration.severity || 0,
+    } : null,
   });
 });
 

@@ -19,9 +19,30 @@ const messageSchema = new mongoose.Schema({
   },
   type: {
     type: String,
-    enum: ['text', 'image', 'file', 'system'],
+    enum: ['text', 'image', 'video', 'file', 'system'],
     default: 'text',
   },
+  // Media fields for file attachments
+  mediaUrl: {
+    type: String,
+    trim: true,
+  },
+  mediaPublicId: {
+    type: String,
+    trim: true,
+  },
+  fileName: {
+    type: String,
+    trim: true,
+  },
+  fileSize: {
+    type: Number,
+  },
+  mimeType: {
+    type: String,
+    trim: true,
+  },
+  // Legacy attachments field (keep for backward compatibility)
   attachments: [{
     url: String,
     filename: String,
@@ -136,12 +157,12 @@ conversationSchema.methods.markAsRead = function(userId) {
   const participant = this.participants.find(
     p => p.user.toString() === userId.toString()
   );
-  
+
   if (participant) {
     participant.lastRead = new Date();
     return this.save();
   }
-  
+
   return Promise.resolve(this);
 };
 
@@ -150,12 +171,12 @@ conversationSchema.methods.addParticipant = function(userId) {
   const existingParticipant = this.participants.find(
     p => p.user.toString() === userId.toString()
   );
-  
+
   if (!existingParticipant) {
     this.participants.push({ user: userId });
     return this.save();
   }
-  
+
   return Promise.resolve(this);
 };
 

@@ -278,11 +278,15 @@ export const moderateMessageContent = async (req, res, next) => {
       flagged: true,
       issues: moderation.issues,
       severity: moderation.severity,
+      confidence: moderation.confidence,
+      flags: moderation.flags,
+      originalContent: content,
     };
   } else {
     req.contentModeration = {
       flagged: false,
       clean: true,
+      confidence: moderation.confidence,
     };
   }
 
