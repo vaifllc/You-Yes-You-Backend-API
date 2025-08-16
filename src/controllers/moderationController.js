@@ -385,6 +385,7 @@ export const getReports = asyncHandler(async (req, res) => {
 export const handleReport = asyncHandler(async (req, res) => {
   const { action, reason, notes, severity, duration, customAction } = req.body;
 
+  // Supported actions and mapping to moderatorActions.action enum
   const validActions = [
     'dismiss',
     'warn_user',
@@ -398,6 +399,19 @@ export const handleReport = asyncHandler(async (req, res) => {
     'educational_intervention',
     'custom'
   ];
+  const actionMapping = {
+    dismiss: 'report_dismissed',
+    warn_user: 'user_warned',
+    remove_content: 'content_removed',
+    suspend_user: 'user_suspended',
+    ban_user: 'user_banned',
+    shadow_ban: 'shadow_ban',
+    restrict_posting: 'restrict_posting',
+    require_approval: 'require_approval',
+    mark_spam: 'mark_spam',
+    educational_intervention: 'educational_intervention',
+    custom: 'custom',
+  };
 
   if (!validActions.includes(action)) {
     return res.status(400).json({
@@ -428,7 +442,7 @@ export const handleReport = asyncHandler(async (req, res) => {
   // Add moderator action with enhanced tracking
   const moderatorAction = {
     moderator: req.user._id,
-    action,
+    action: actionMapping[action] || action,
     reason,
     notes,
     severity: severity || 'medium',
@@ -444,18 +458,78 @@ export const handleReport = asyncHandler(async (req, res) => {
     case 'dismiss':
       report.status = 'dismissed';
       await report.resolve(req.user._id, 'Report dismissed', reason);
+      // Notify reporter that no action taken
+      try {
+        if (report.reporter) {
+          await Notification.create({
+            recipient: report.reporter,
+            sender: req.user._id,
+            type: 'admin_message',
+            title: 'Report reviewed',
+            message: 'Your report has been reviewed. No further action will be taken at this time.',
+            priority: 'normal',
+          });
+        }
+      } catch {}
       break;
 
     case 'warn_user':
       await handleUserWarning(report.reportedUser, req.user._id, reason, severity);
       report.status = 'resolved';
       await report.resolve(req.user._id, 'User warned', reason);
+      // Notify reported user
+      try {
+        if (report.reportedUser) {
+          await Notification.create({
+            recipient: report.reportedUser,
+            sender: req.user._id,
+            type: 'admin_message',
+            title: 'Warning issued',
+            message: reason || 'You have received a warning regarding reported content.',
+            priority: 'high',
+          });
+        }
+        // Notify reporter that action was taken
+        if (report.reporter) {
+          await Notification.create({
+            recipient: report.reporter,
+            sender: req.user._id,
+            type: 'admin_message',
+            title: 'Report actioned',
+            message: 'Thank you for the report. A warning has been issued.',
+            priority: 'normal',
+          });
+        }
+      } catch {}
       break;
 
     case 'remove_content':
       await handleContentRemoval(report, req.user._id, reason);
       report.status = 'resolved';
       await report.resolve(req.user._id, 'Content removed', reason);
+      // Notify users
+      try {
+        if (report.reportedUser) {
+          await Notification.create({
+            recipient: report.reportedUser,
+            sender: req.user._id,
+            type: 'admin_message',
+            title: 'Content removed',
+            message: reason || 'Your content was removed due to a policy violation.',
+            priority: 'high',
+          });
+        }
+        if (report.reporter) {
+          await Notification.create({
+            recipient: report.reporter,
+            sender: req.user._id,
+            type: 'admin_message',
+            title: 'Report actioned',
+            message: 'Thank you for the report. The content has been removed.',
+            priority: 'normal',
+          });
+        }
+      } catch {}
       break;
 
     case 'suspend_user':
@@ -500,7 +574,48 @@ export const handleReport = asyncHandler(async (req, res) => {
       await report.resolve(req.user._id, 'Educational intervention applied', reason);
       break;
 
-    // escalate removed from admin actions for now
+    // Additional actions
+    case 'suspend_user':
+      await handleUserSuspension(report.reportedUser, req.user._id, reason, duration || 7);
+      report.status = 'resolved';
+      await report.resolve(req.user._id, 'User suspended', reason);
+      break;
+
+    case 'ban_user':
+      await handleUserBan(report.reportedUser, req.user._id, reason);
+      report.status = 'resolved';
+      await report.resolve(req.user._id, 'User banned', reason);
+      break;
+
+    case 'shadow_ban':
+      await handleShadowBan(report.reportedUser, req.user._id, reason, duration || 30);
+      report.status = 'resolved';
+      await report.resolve(req.user._id, 'User shadow banned', reason);
+      break;
+
+    case 'restrict_posting':
+      await handlePostingRestriction(report.reportedUser, req.user._id, reason, duration || 7);
+      report.status = 'resolved';
+      await report.resolve(req.user._id, 'User posting restricted', reason);
+      break;
+
+    case 'require_approval':
+      await handleApprovalRequirement(report.reportedUser, req.user._id, reason);
+      report.status = 'resolved';
+      await report.resolve(req.user._id, 'User requires approval', reason);
+      break;
+
+    case 'mark_spam':
+      await handleSpamMarking(report, req.user._id, reason);
+      report.status = 'resolved';
+      await report.resolve(req.user._id, 'Marked as spam', reason);
+      break;
+
+    case 'educational_intervention':
+      await handleEducationalIntervention(report.reportedUser, req.user._id, reason);
+      report.status = 'resolved';
+      await report.resolve(req.user._id, 'Educational intervention applied', reason);
+      break;
 
     case 'custom':
       if (!customAction) {
