@@ -1,21 +1,18 @@
 import jwt from 'jsonwebtoken';
+import { generateAccessToken, generateRefreshToken, verifyRefreshToken } from '../utils/generateToken.js';
 import User from '../models/User.js';
 import Notification from '../models/Notification.js';
 import { updateStreak, STREAK_TYPES } from '../utils/streakTracker.js';
 import { sendWelcomeMessage } from '../utils/autoMessaging.js';
 import { asyncHandler } from '../middleware/errorHandler.js';
 
-// Generate JWT token
-const generateToken = (id) => {
-  return jwt.sign({ id }, process.env.JWT_SECRET, {
-    expiresIn: process.env.JWT_EXPIRES_IN || '7d',
-  });
-};
+// Generate JWT moved to utils
 
 // Send token response
 const sendTokenResponse = (user, statusCode, res, message = 'Success') => {
-  const token = generateToken(user._id);
-  
+  const token = generateAccessToken(user._id);
+  const refreshToken = generateRefreshToken(user._id);
+
   const userResponse = {
     _id: user._id,
     name: user.name,
@@ -38,6 +35,7 @@ const sendTokenResponse = (user, statusCode, res, message = 'Success') => {
     success: true,
     message,
     token,
+    refreshToken,
     user: userResponse,
   });
 };
@@ -134,7 +132,7 @@ export const login = asyncHandler(async (req, res) => {
   // Update login streak and award points for daily login
   const today = new Date().toDateString();
   const lastLogin = user.lastActive ? user.lastActive.toDateString() : null;
-  
+
   if (lastLogin !== today) {
     await user.addPoints(2, 'Daily login');
     await updateStreak(user._id, STREAK_TYPES.LOGIN);

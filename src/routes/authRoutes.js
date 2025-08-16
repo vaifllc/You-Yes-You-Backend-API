@@ -15,12 +15,14 @@ import {
   handleValidationErrors,
 } from '../middleware/validation.js';
 import { body } from 'express-validator';
+import { refresh } from '../controllers/tokenController.js';
 
 const router = express.Router();
 
 // Public routes
 router.post('/register', validateUserRegistration, register);
 router.post('/login', validateUserLogin, login);
+router.post('/refresh', refresh);
 
 // Protected routes
 router.use(authenticate); // All routes after this middleware require authentication
