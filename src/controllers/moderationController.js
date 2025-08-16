@@ -333,7 +333,7 @@ export const getReports = asyncHandler(async (req, res) => {
     .populate('reporter', 'name username avatar')
     .populate('reportedUser', 'name username avatar moderationStatus')
     .populate('resolution.resolvedBy', 'name username')
-    .populate('escalation.escalatedBy', 'name username')
+    .setOptions({ strictPopulate: false })
     .sort(sortObj)
     .limit(limit * 1)
     .skip((page - 1) * limit);
