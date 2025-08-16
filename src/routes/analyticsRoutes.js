@@ -6,6 +6,7 @@ import Event from '../models/Event.js';
 import Challenge from '../models/Challenge.js';
 import { authenticate, authorize } from '../middleware/auth.js';
 import { asyncHandler } from '../middleware/errorHandler.js';
+import mongoose from 'mongoose';
 
 const router = express.Router();
 
@@ -21,7 +22,7 @@ router.get('/dashboard', asyncHandler(async (req, res) => {
 
   let dateFilter = {};
   const now = new Date();
-  
+
   switch (timeframe) {
     case '7d':
       dateFilter = { $gte: new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000) };
@@ -52,7 +53,7 @@ router.get('/dashboard', asyncHandler(async (req, res) => {
     Post.countDocuments({ isApproved: true }),
     Course.countDocuments({ isPublished: true }),
     Event.countDocuments({ status: 'scheduled', date: { $gte: new Date() } }),
-    
+
     // User growth over time
     User.aggregate([
       { $match: { createdAt: dateFilter } },
@@ -64,7 +65,7 @@ router.get('/dashboard', asyncHandler(async (req, res) => {
       },
       { $sort: { _id: 1 } }
     ]),
-    
+
     // Post activity
     Post.aggregate([
       { $match: { createdAt: dateFilter } },
@@ -76,7 +77,7 @@ router.get('/dashboard', asyncHandler(async (req, res) => {
       },
       { $sort: { _id: 1 } }
     ]),
-    
+
     // Course engagement
     User.aggregate([
       { $unwind: '$courses' },
@@ -90,7 +91,7 @@ router.get('/dashboard', asyncHandler(async (req, res) => {
       },
       { $sort: { _id: 1 } }
     ]),
-    
+
     // Phase distribution
     User.aggregate([
       { $group: { _id: '$phase', count: { $sum: 1 } } },
@@ -120,6 +121,29 @@ router.get('/dashboard', asyncHandler(async (req, res) => {
   });
 }));
 
+// @desc    Get system health metrics
+// @route   GET /api/analytics/health
+// @access  Private (Admin)
+router.get('/health', asyncHandler(async (req, res) => {
+  const start = Date.now();
+  let dbMs = 0;
+  try {
+    const pingStart = Date.now();
+    await mongoose.connection.db.admin().ping();
+    dbMs = Date.now() - pingStart;
+  } catch (e) {
+    dbMs = -1;
+  }
+  const apiMs = Date.now() - start;
+  const storageUsage = process.env.STORAGE_USAGE_PERCENT || '—';
+  const systemHealth = [
+    { metric: 'API Response Time', value: `${apiMs}ms`, status: apiMs < 500 ? 'good' : 'warning', color: apiMs < 500 ? 'text-green-600' : 'text-yellow-600' },
+    { metric: 'Database Ping', value: dbMs >= 0 ? `${dbMs}ms` : 'error', status: dbMs >= 0 && dbMs < 200 ? 'excellent' : (dbMs >= 0 ? 'good' : 'error'), color: dbMs >= 0 && dbMs < 200 ? 'text-green-600' : (dbMs >= 0 ? 'text-yellow-600' : 'text-red-600') },
+    { metric: 'Storage Usage', value: storageUsage, status: 'info', color: 'text-blue-600' },
+  ];
+  res.status(200).json({ success: true, data: { systemHealth } });
+}));
+
 // @desc    Get user engagement analytics
 // @route   GET /api/analytics/engagement
 // @access  Private (Admin)
@@ -128,7 +152,7 @@ router.get('/engagement', asyncHandler(async (req, res) => {
 
   let dateFilter = {};
   const now = new Date();
-  
+
   switch (timeframe) {
     case '7d':
       dateFilter = { $gte: new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000) };
@@ -159,7 +183,7 @@ router.get('/engagement', asyncHandler(async (req, res) => {
       },
       { $sort: { _id: 1 } }
     ]),
-    
+
     // Post engagement metrics
     Post.aggregate([
       { $match: { createdAt: dateFilter } },
@@ -175,7 +199,7 @@ router.get('/engagement', asyncHandler(async (req, res) => {
       },
       { $sort: { posts: -1 } }
     ]),
-    
+
     // Course completion rates
     Course.aggregate([
       {
@@ -226,7 +250,7 @@ router.get('/engagement', asyncHandler(async (req, res) => {
         }
       }
     ]),
-    
+
     // Event attendance
     Event.aggregate([
       { $match: { date: dateFilter } },
@@ -259,7 +283,7 @@ router.get('/engagement', asyncHandler(async (req, res) => {
         }
       }
     ]),
-    
+
     // Challenge participation
     Challenge.aggregate([
       { $match: { startDate: dateFilter } },
@@ -323,7 +347,7 @@ router.get('/retention', asyncHandler(async (req, res) => {
     User.countDocuments({
       lastActive: { $gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) }
     }),
-    
+
     // Retention by join cohort
     User.aggregate([
       {
@@ -353,7 +377,7 @@ router.get('/retention', asyncHandler(async (req, res) => {
       },
       { $sort: { '_id.year': 1, '_id.month': 1 } }
     ]),
-    
+
     // Churn analysis
     User.aggregate([
       {
@@ -446,11 +470,11 @@ router.get('/export', asyncHandler(async (req, res) => {
 // Helper function to convert JSON to CSV
 const convertToCSV = (data) => {
   if (!data.length) return '';
-  
+
   const headers = Object.keys(data[0]);
   const csvHeaders = headers.join(',');
-  
-  const csvRows = data.map(row => 
+
+  const csvRows = data.map(row =>
     headers.map(header => {
       const value = row[header];
       if (typeof value === 'string' && value.includes(',')) {
@@ -459,7 +483,7 @@ const convertToCSV = (data) => {
       return value;
     }).join(',')
   );
-  
+
   return [csvHeaders, ...csvRows].join('\n');
 };
 
