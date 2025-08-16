@@ -37,6 +37,7 @@ import analyticsRoutes from './src/routes/analyticsRoutes.js';
 import searchRoutes from './src/routes/searchRoutes.js';
 import fileRoutes from './src/routes/fileRoutes.js';
 import siteRoutes from './src/routes/siteRoutes.js';
+import achievementRoutes from './src/routes/achievementRoutes.js';
 
 // Import middleware
 import { errorHandler } from './src/middleware/errorHandler.js';
@@ -199,6 +200,7 @@ app.use('/api/analytics', analyticsRoutes);
 app.use('/api/search', searchRoutes);
 app.use('/api/files', fileRoutes);
 app.use('/api/site', siteRoutes);
+app.use('/api/achievements', achievementRoutes);
 
 // Socket.IO connection handling
 io.on('connection', (socket) => {
