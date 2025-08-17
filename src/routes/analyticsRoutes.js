@@ -1171,3 +1171,5 @@ const calculateTrendStats = (values, metricName, unit) => {
     dataPoints: values.length
   };
 };
+
+export default router;
