@@ -20,6 +20,7 @@ router.use(authorize('admin'));
 router.get('/dashboard', asyncHandler(async (req, res) => {
   const routeStart = Date.now();
   const { timeframe = '30d' } = req.query;
+  console.log('[Analytics] /dashboard requested', { timeframe });
 
   let dateFilter = {};
   const now = new Date();
@@ -100,6 +101,15 @@ router.get('/dashboard', asyncHandler(async (req, res) => {
     ]),
   ]);
 
+  console.log('[Analytics] /dashboard overview', {
+    totalUsers,
+    activeUsers,
+    newUsers,
+    totalPosts,
+    totalCourses,
+    totalEvents,
+  });
+
   // Compute lightweight system health for dashboard payload
   let dbMs = 0;
   try {
@@ -117,6 +127,7 @@ router.get('/dashboard', asyncHandler(async (req, res) => {
     { metric: 'User Satisfaction', value: '—', status: 'unknown', color: 'text-gray-500' },
     { metric: 'Storage Usage', value: storageUsage, status: 'info', color: 'text-blue-600' },
   ];
+  console.log('[Analytics] /dashboard systemHealth', { apiMs, dbMs, storageUsage, systemHealth });
 
   res.status(200).json({
     success: true,
@@ -161,6 +172,7 @@ router.get('/health', asyncHandler(async (req, res) => {
     { metric: 'Database Ping', value: dbMs >= 0 ? `${dbMs}ms` : 'error', status: dbMs >= 0 && dbMs < 200 ? 'excellent' : (dbMs >= 0 ? 'good' : 'error'), color: dbMs >= 0 && dbMs < 200 ? 'text-green-600' : (dbMs >= 0 ? 'text-yellow-600' : 'text-red-600') },
     { metric: 'Storage Usage', value: storageUsage, status: 'info', color: 'text-blue-600' },
   ];
+  console.log('[Analytics] /health', { apiMs, dbMs, storageUsage, systemHealth });
   res.status(200).json({ success: true, data: { systemHealth } });
 }));
 
