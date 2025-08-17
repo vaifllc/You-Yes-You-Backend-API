@@ -18,6 +18,7 @@ router.use(authorize('admin'));
 // @route   GET /api/analytics/dashboard
 // @access  Private (Admin)
 router.get('/dashboard', asyncHandler(async (req, res) => {
+  const routeStart = Date.now();
   const { timeframe = '30d' } = req.query;
 
   let dateFilter = {};
@@ -99,6 +100,24 @@ router.get('/dashboard', asyncHandler(async (req, res) => {
     ]),
   ]);
 
+  // Compute lightweight system health for dashboard payload
+  let dbMs = 0;
+  try {
+    const pingStart = Date.now();
+    await mongoose.connection.db.admin().ping();
+    dbMs = Date.now() - pingStart;
+  } catch (e) {
+    dbMs = -1;
+  }
+  const apiMs = Date.now() - routeStart;
+  const storageUsage = process.env.STORAGE_USAGE_PERCENT || '—';
+  const systemHealth = [
+    { metric: 'API Response Time', value: `${apiMs}ms`, status: apiMs < 500 ? 'good' : 'warning', color: apiMs < 500 ? 'text-green-600' : 'text-yellow-600' },
+    { metric: 'Database Performance', value: dbMs >= 0 ? `${dbMs}ms` : 'error', status: dbMs >= 0 && dbMs < 200 ? 'excellent' : (dbMs >= 0 ? 'good' : 'error'), color: dbMs >= 0 && dbMs < 200 ? 'text-green-600' : (dbMs >= 0 ? 'text-yellow-600' : 'text-red-600') },
+    { metric: 'User Satisfaction', value: '—', status: 'unknown', color: 'text-gray-500' },
+    { metric: 'Storage Usage', value: storageUsage, status: 'info', color: 'text-blue-600' },
+  ];
+
   res.status(200).json({
     success: true,
     data: {
@@ -116,6 +135,7 @@ router.get('/dashboard', asyncHandler(async (req, res) => {
         courseEngagement,
         phaseDistribution,
       },
+      systemHealth,
       timeframe,
     },
   });
