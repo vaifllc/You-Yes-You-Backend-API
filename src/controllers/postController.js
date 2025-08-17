@@ -6,29 +6,29 @@ import { asyncHandler } from '../middleware/errorHandler.js';
 // @route   GET /api/posts
 // @access  Public
 export const getPosts = asyncHandler(async (req, res) => {
-  const { 
-    page = 1, 
-    limit = 10, 
-    category, 
-    search, 
+  const {
+    page = 1,
+    limit = 10,
+    category,
+    search,
     tags,
-    sortBy = 'latest' 
+    sortBy = 'latest'
   } = req.query;
 
   // Build query
   const query = { isApproved: true };
-  
+
   if (category && category !== 'all') {
     query.category = category;
   }
-  
+
   if (search) {
     query.$or = [
       { content: { $regex: search, $options: 'i' } },
       { tags: { $in: [new RegExp(search, 'i')] } },
     ];
   }
-  
+
   if (tags) {
     const tagArray = tags.split(',').map(tag => tag.trim());
     query.tags = { $in: tagArray };
@@ -63,7 +63,7 @@ export const getPosts = asyncHandler(async (req, res) => {
   posts.forEach(post => {
     post.likesCount = post.likes ? post.likes.length : 0;
     post.commentsCount = post.comments ? post.comments.length : 0;
-    
+
     // Check if current user liked the post
     if (req.user) {
       post.isLikedByUser = post.likes?.some(
@@ -127,13 +127,31 @@ export const getPost = asyncHandler(async (req, res) => {
 // @route   POST /api/posts
 // @access  Private
 export const createPost = asyncHandler(async (req, res) => {
-  const { content, category, tags } = req.body;
+  const { content, category, tags, images } = req.body;
+
+  // Normalize images from client: accept array of strings or objects
+  let normalizedImages = [];
+  if (Array.isArray(images)) {
+    normalizedImages = images
+      .filter(Boolean)
+      .map((img) => {
+        if (typeof img === 'string') {
+          return { url: img };
+        }
+        if (img && typeof img === 'object' && typeof img.url === 'string') {
+          return { url: img.url, publicId: img.publicId };
+        }
+        return null;
+      })
+      .filter(Boolean);
+  }
 
   const post = await Post.create({
     author: req.user._id,
     content,
     category,
     tags: tags || [],
+    images: normalizedImages,
     isApproved: !req.contentModeration?.flagged, // Use middleware result
   });
 
@@ -290,7 +308,7 @@ export const addComment = asyncHandler(async (req, res) => {
 
   res.status(201).json({
     success: true,
-    message: req.contentModeration?.flagged 
+    message: req.contentModeration?.flagged
       ? 'Comment added (content filtered)'
       : 'Comment added successfully',
     data: newComment,
@@ -399,9 +417,9 @@ export const getCategories = asyncHandler(async (req, res) => {
   // Get post count for each category
   const categoriesWithCounts = await Promise.all(
     categories.map(async (category) => {
-      const count = await Post.countDocuments({ 
-        category, 
-        isApproved: true 
+      const count = await Post.countDocuments({
+        category,
+        isApproved: true
       });
       return {
         name: category,
