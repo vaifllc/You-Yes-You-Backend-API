@@ -1,5 +1,5 @@
 {
-  "name": "you-yes-you-backend",
+  "name": "@learning-platform/server",
   "version": "1.0.0",
   "description": "Backend API for YOU YES YOU digital community platform",
   "main": "server.js",
