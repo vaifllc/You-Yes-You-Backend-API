@@ -32,7 +32,7 @@ export const handleZapierWebhook = asyncHandler(async (req, res) => {
 
     // Process webhook based on event type
     let result = {};
-    
+
     switch (event) {
       case 'new_member':
         result = await processNewMemberWebhook(webhookData);
@@ -52,6 +52,9 @@ export const handleZapierWebhook = asyncHandler(async (req, res) => {
       case 'level_up':
         result = await processLevelUpWebhook(webhookData);
         break;
+      case 'feedback_submitted':
+        result = await processFeedbackSubmittedWebhook(webhookData);
+        break;
       default:
         result = { processed: false, reason: 'Unknown event type' };
     }
@@ -70,13 +73,13 @@ export const handleZapierWebhook = asyncHandler(async (req, res) => {
 
   } catch (error) {
     console.error('Webhook processing error:', error);
-    
+
     // Log failed webhook
     const zapierIntegrations = await Integration.find({
       type: 'zapier',
       isActive: true,
     });
-    
+
     for (const integration of zapierIntegrations) {
       await integration.logApiCall(false, error);
     }
@@ -92,10 +95,10 @@ export const handleZapierWebhook = asyncHandler(async (req, res) => {
 // Process different webhook types
 const processNewMemberWebhook = async (data) => {
   const { userId, name, email, phase } = data;
-  
+
   // Send to external services
   const results = [];
-  
+
   // Add to Google Sheets (via Zapier)
   if (process.env.GOOGLE_SHEETS_WEBHOOK_URL) {
     try {
@@ -121,7 +124,7 @@ const processNewMemberWebhook = async (data) => {
     try {
       const response = await fetch(process.env.GOHIGHLEVEL_WEBHOOK_URL, {
         method: 'POST',
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${process.env.GOHIGHLEVEL_API_KEY}`,
         },
@@ -149,7 +152,7 @@ const processNewMemberWebhook = async (data) => {
     try {
       const response = await fetch(process.env.CONVERTKIT_WEBHOOK_URL, {
         method: 'POST',
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${process.env.CONVERTKIT_API_KEY}`,
         },
@@ -175,7 +178,7 @@ const processNewMemberWebhook = async (data) => {
 
 const processCourseCompletedWebhook = async (data) => {
   const { userId, courseId, courseTitle, completionDate } = data;
-  
+
   const results = [];
 
   // Trigger certificate generation
@@ -203,7 +206,7 @@ const processCourseCompletedWebhook = async (data) => {
     try {
       const response = await fetch(`${process.env.GOHIGHLEVEL_WEBHOOK_URL}/update-contact`, {
         method: 'PUT',
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${process.env.GOHIGHLEVEL_API_KEY}`,
         },
@@ -226,7 +229,7 @@ const processCourseCompletedWebhook = async (data) => {
 
 const processEventAttendedWebhook = async (data) => {
   const { userId, eventId, eventTitle, attendanceDate } = data;
-  
+
   const results = [];
 
   // Update engagement tracking
@@ -255,13 +258,13 @@ const processEventAttendedWebhook = async (data) => {
 
 const processChallengeCompletedWebhook = async (data) => {
   const { userId, challengeId, challengeTitle, completionDate } = data;
-  
+
   // Trigger reward processing
   const user = await User.findById(userId);
-  
-  return { 
-    event: 'challenge_completed', 
-    processed: true, 
+
+  return {
+    event: 'challenge_completed',
+    processed: true,
     user: user.name,
     challenge: challengeTitle,
     rewardProcessed: true,
@@ -270,7 +273,7 @@ const processChallengeCompletedWebhook = async (data) => {
 
 const processBadgeEarnedWebhook = async (data) => {
   const { userId, badgeName, badgeDescription, pointsAwarded } = data;
-  
+
   // Send congratulations email
   const user = await User.findById(userId);
   await sendBadgeEarnedEmail(user, {
@@ -280,8 +283,8 @@ const processBadgeEarnedWebhook = async (data) => {
     rewards: { points: pointsAwarded },
   });
 
-  return { 
-    event: 'badge_earned', 
+  return {
+    event: 'badge_earned',
     processed: true,
     emailSent: true,
   };
@@ -289,14 +292,36 @@ const processBadgeEarnedWebhook = async (data) => {
 
 const processLevelUpWebhook = async (data) => {
   const { userId, oldLevel, newLevel, totalPoints } = data;
-  
+
   // Could trigger special rewards or notifications
   console.log(`🎉 User ${userId} leveled up from ${oldLevel} to ${newLevel}!`);
 
-  return { 
-    event: 'level_up', 
+  return {
+    event: 'level_up',
     processed: true,
     levelChange: `${oldLevel} → ${newLevel}`,
+  };
+};
+
+const processFeedbackSubmittedWebhook = async (data) => {
+  const { feedbackId, title, category, priority, author } = data;
+
+  // Log feedback submission for external services
+  console.log(`📝 Feedback submitted: ${title} (${category}, ${priority}) by ${author.name}`);
+
+  // Could trigger external integrations like:
+  // - Slack notifications
+  // - Jira ticket creation
+  // - Customer support system updates
+  // - Analytics tracking
+
+  return {
+    event: 'feedback_submitted',
+    processed: true,
+    feedbackId,
+    category,
+    priority,
+    authorName: author.name,
   };
 };
 
@@ -312,7 +337,7 @@ export const handleGoogleCalendarWebhook = asyncHandler(async (req, res) => {
   if (eventType === 'event_created' || eventType === 'event_updated') {
     try {
       const { title, description, start, end, attendees } = eventData;
-      
+
       // Create or update event in platform
       const event = await Event.findOneAndUpdate(
         { googleCalendarId: eventData.id },
@@ -362,13 +387,13 @@ export const handleStripeWebhook = asyncHandler(async (req, res) => {
       const paymentIntent = event.data.object;
       await processSuccessfulPayment(paymentIntent);
       break;
-    
+
     case 'customer.subscription.created':
       // Handle new subscription
       const subscription = event.data.object;
       await processNewSubscription(subscription);
       break;
-    
+
     default:
       console.log(`Unhandled Stripe event type: ${event.type}`);
   }
@@ -382,7 +407,7 @@ const calculateDuration = (start, end) => {
   const endTime = new Date(end);
   const durationMs = endTime - startTime;
   const durationMinutes = Math.round(durationMs / (1000 * 60));
-  
+
   if (durationMinutes >= 60) {
     const hours = Math.round(durationMinutes / 60);
     return `${hours} hour${hours > 1 ? 's' : ''}`;

@@ -3,6 +3,7 @@ import User from '../models/User.js';
 import Post from '../models/Post.js';
 import Course from '../models/Course.js';
 import Event from '../models/Event.js';
+import Feedback from '../models/Feedback.js';
 import { authenticate, authorize } from '../middleware/auth.js';
 import { asyncHandler } from '../middleware/errorHandler.js';
 import { validateObjectId, validatePagination, handleValidationErrors } from '../middleware/validation.js';
@@ -41,6 +42,10 @@ router.get('/dashboard', asyncHandler(async (req, res) => {
       .sort({ date: 1 }).limit(5),
   ]);
 
+  // Get feedback stats
+  const Feedback = (await import('../models/Feedback.js')).default;
+  const feedbackStats = await Feedback.getFeedbackStats();
+
   // Get user growth (last 30 days)
   const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
   const newUsersLast30Days = await User.countDocuments({
@@ -76,6 +81,7 @@ router.get('/dashboard', asyncHandler(async (req, res) => {
         totalEvents,
         activeUsers,
         newUsersLast30Days,
+        feedback: feedbackStats,
       },
       charts: {
         phaseDistribution,
@@ -486,6 +492,47 @@ router.post('/invites', asyncHandler(async (req, res) => {
     success: true,
     message: `Generated ${count} invite code(s)`,
     data: invites,
+  });
+}));
+
+// @desc    Get feedback management data
+// @route   GET /api/admin/feedback
+// @access  Private (Admin)
+router.get('/feedback', asyncHandler(async (req, res) => {
+  const { page = 1, limit = 20, status, category, priority, type, search } = req.query;
+
+  const filters = {
+    status: status || 'all',
+    category: category || 'all',
+    priority: priority || 'all',
+    type: type || 'all',
+    search: search || '',
+    isAdmin: true
+  };
+
+  const query = await Feedback.getFeedbackWithFilters(filters);
+
+  const feedback = await Feedback.find(query)
+    .populate('author', 'name username avatar')
+    .populate('assignedTo', 'name username avatar')
+    .populate('responses.author', 'name username avatar role')
+    .sort({ createdAt: -1 })
+    .limit(limit * 1)
+    .skip((page - 1) * limit)
+    .lean();
+
+  const total = await Feedback.countDocuments(query);
+
+  res.status(200).json({
+    success: true,
+    data: feedback,
+    pagination: {
+      current: parseInt(page),
+      pages: Math.ceil(total / limit),
+      total,
+      hasNext: page < Math.ceil(total / limit),
+      hasPrev: page > 1,
+    },
   });
 }));
 

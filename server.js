@@ -38,6 +38,8 @@ import searchRoutes from './src/routes/searchRoutes.js';
 import fileRoutes from './src/routes/fileRoutes.js';
 import siteRoutes from './src/routes/siteRoutes.js';
 import achievementRoutes from './src/routes/achievementRoutes.js';
+import feedbackRoutes from './src/routes/feedbackRoutes.js';
+import bookmarkRoutes from './src/routes/bookmarkRoutes.js';
 
 // Import middleware
 import { errorHandler } from './src/middleware/errorHandler.js';
@@ -213,6 +215,8 @@ app.use('/api/search', searchRoutes);
 app.use('/api/files', fileRoutes);
 app.use('/api/site', siteRoutes);
 app.use('/api/achievements', achievementRoutes);
+app.use('/api/feedback', feedbackRoutes);
+app.use('/api/bookmarks', bookmarkRoutes);
 
 // Socket.IO connection handling
 io.on('connection', (socket) => {
@@ -237,6 +241,27 @@ io.on('connection', (socket) => {
   // Handle user online status
   socket.on('user_online', (userId) => {
     socket.broadcast.emit('user_status_changed', { userId, isOnline: true });
+  });
+
+  // Handle real-time feedback updates
+  socket.on('feedback_submitted', (feedbackData) => {
+    socket.broadcast.emit('feedback_created', feedbackData);
+  });
+
+  socket.on('feedback_updated', (feedbackData) => {
+    socket.broadcast.emit('feedback_modified', feedbackData);
+  });
+
+  socket.on('feedback_response', (responseData) => {
+    socket.broadcast.emit('response_added', responseData);
+  });
+
+  socket.on('feedback_bookmarked', (bookmarkData) => {
+    socket.broadcast.emit('bookmark_updated', bookmarkData);
+  });
+
+  socket.on('feedback_flagged', (flagData) => {
+    socket.broadcast.emit('flag_updated', flagData);
   });
 
   socket.on('disconnect', () => {
