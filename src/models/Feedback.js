@@ -98,14 +98,6 @@ const feedbackSchema = new mongoose.Schema({
     type: Number,
     default: 0
   },
-  isUserBookmarked: {
-    type: Boolean,
-    default: false
-  },
-  isUserFlagged: {
-    type: Boolean,
-    default: false
-  },
   bookmarkedBy: [{
     user: {
       type: mongoose.Schema.Types.ObjectId,

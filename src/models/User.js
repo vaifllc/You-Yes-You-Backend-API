@@ -232,7 +232,6 @@ const userSchema = new mongoose.Schema({
 // Index for better query performance (ensure declared once)
 // Use plain indexes here to avoid duplicating unique defs on fields
 userSchema.index({ points: -1 });
-userSchema.index({ points: -1 });
 userSchema.index({ 'courses.courseId': 1 });
 
 // Pre-save middleware to hash password
