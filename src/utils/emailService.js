@@ -1,7 +1,18 @@
 import sgMail from '@sendgrid/mail';
 
-// Initialize SendGrid
-sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+// Initialize SendGrid safely (skip if no/invalid key)
+let emailEnabled = false;
+try {
+  const key = process.env.SENDGRID_API_KEY || '';
+  if (key && key.startsWith('SG.')) {
+    sgMail.setApiKey(key);
+    emailEnabled = true;
+  } else {
+    console.warn('Email disabled: SENDGRID_API_KEY missing or invalid.');
+  }
+} catch (e) {
+  console.warn('Email disabled: failed to initialize SendGrid.', e?.message || e);
+}
 
 // Send welcome email
 export const sendWelcomeEmail = async (user) => {
@@ -55,8 +66,10 @@ export const sendWelcomeEmail = async (user) => {
       `,
     };
 
-    await sgMail.send(msg);
-    console.log(`✅ Welcome email sent to ${user.email}`);
+    if (emailEnabled) {
+      await sgMail.send(msg);
+      console.log(`✅ Welcome email sent to ${user.email}`);
+    }
   } catch (error) {
     console.error('❌ Failed to send welcome email:', error);
   }
@@ -103,8 +116,10 @@ export const sendPasswordResetEmail = async (user, resetToken) => {
       `,
     };
 
-    await sgMail.send(msg);
-    console.log(`✅ Password reset email sent to ${user.email}`);
+    if (emailEnabled) {
+      await sgMail.send(msg);
+      console.log(`✅ Password reset email sent to ${user.email}`);
+    }
   } catch (error) {
     console.error('❌ Failed to send password reset email:', error);
   }
@@ -156,8 +171,10 @@ export const sendEventReminderEmail = async (user, event) => {
       `,
     };
 
-    await sgMail.send(msg);
-    console.log(`✅ Event reminder sent to ${user.email}`);
+    if (emailEnabled) {
+      await sgMail.send(msg);
+      console.log(`✅ Event reminder sent to ${user.email}`);
+    }
   } catch (error) {
     console.error('❌ Failed to send event reminder:', error);
   }
@@ -212,8 +229,10 @@ export const sendAutoWelcomeDM = async (user) => {
       `,
     };
 
-    await sgMail.send(msg);
-    console.log(`✅ Auto-welcome DM sent to ${user.email}`);
+    if (emailEnabled) {
+      await sgMail.send(msg);
+      console.log(`✅ Auto-welcome DM sent to ${user.email}`);
+    }
   } catch (error) {
     console.error('❌ Failed to send auto-welcome DM:', error);
   }
@@ -249,8 +268,10 @@ export const sendBadgeEarnedEmail = async (user, badge) => {
       `,
     };
 
-    await sgMail.send(msg);
-    console.log(`✅ Badge earned email sent to ${user.email}`);
+    if (emailEnabled) {
+      await sgMail.send(msg);
+      console.log(`✅ Badge earned email sent to ${user.email}`);
+    }
   } catch (error) {
     console.error('❌ Failed to send badge earned email:', error);
   }
@@ -297,8 +318,10 @@ export const sendCourseCompletionMessage = async (user, course) => {
       `,
     };
 
-    await sgMail.send(msg);
-    console.log(`✅ Course completion email sent to ${user.email}`);
+    if (emailEnabled) {
+      await sgMail.send(msg);
+      console.log(`✅ Course completion email sent to ${user.email}`);
+    }
   } catch (error) {
     console.error('❌ Failed to send course completion email:', error);
   }
@@ -385,8 +408,10 @@ export const sendFeedbackNotification = async (feedback, recipient, type) => {
       `,
     };
 
-    await sgMail.send(msg);
-    console.log(`✅ Feedback notification email sent to ${recipient.email}`);
+    if (emailEnabled) {
+      await sgMail.send(msg);
+      console.log(`✅ Feedback notification email sent to ${recipient.email}`);
+    }
   } catch (error) {
     console.error('❌ Failed to send feedback notification email:', error);
   }

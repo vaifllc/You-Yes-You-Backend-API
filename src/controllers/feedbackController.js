@@ -1058,7 +1058,6 @@ export default {
   updateFeedback,
   deleteFeedback,
   addResponse,
-  toggleBookmark,
   toggleFlag,
   getFeedbackStats,
   getUserFeedback,
