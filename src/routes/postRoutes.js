@@ -6,6 +6,7 @@ import {
   updatePost,
   deletePost,
   toggleLike,
+  toggleBookmark,
   addComment,
   updateComment,
   deleteComment,
@@ -44,6 +45,7 @@ router.post('/', validatePost, moderatePostContent, logModerationAction('create_
 router.put('/:id', validateObjectId, validatePost, moderatePostContent, logModerationAction('update_post'), updatePost);
 router.delete('/:id', validateObjectId, deletePost);
 router.put('/:id/like', validateObjectId, toggleLike);
+router.put('/:id/bookmark', toggleBookmark);
 
 // Comment routes
 router.post('/:id/comments', validateObjectId, validateComment, moderateCommentContent, logModerationAction('create_comment'), addComment);

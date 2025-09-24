@@ -41,6 +41,16 @@ const postSchema = new mongoose.Schema({
       default: Date.now,
     },
   }],
+  bookmarks: [{
+    user: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+    },
+    timestamp: {
+      type: Date,
+      default: Date.now,
+    },
+  }],
   comments: [{
     user: {
       type: mongoose.Schema.Types.ObjectId,
@@ -104,6 +114,10 @@ postSchema.virtual('likesCount').get(function() {
   return this.likes ? this.likes.length : 0;
 });
 
+postSchema.virtual('bookmarksCount').get(function() {
+  return this.bookmarks ? this.bookmarks.length : 0;
+});
+
 // Virtual for comment count
 postSchema.virtual('commentsCount').get(function() {
   return this.comments ? this.comments.length : 0;
@@ -112,6 +126,10 @@ postSchema.virtual('commentsCount').get(function() {
 // Method to check if user liked the post
 postSchema.methods.isLikedBy = function(userId) {
   return this.likes.some(like => like.user.toString() === userId.toString());
+};
+
+postSchema.methods.isBookmarkedBy = function(userId) {
+  return this.bookmarks.some(bookmark => bookmark.user.toString() === userId.toString());
 };
 
 // Method to toggle like
@@ -129,6 +147,20 @@ postSchema.methods.toggleLike = function(userId) {
     this.likes.push({ user: userId });
     this.lastActivity = new Date();
     return true; // Liked
+  }
+};
+
+postSchema.methods.toggleBookmark = function(userId) {
+  const existingBookmarkIndex = this.bookmarks.findIndex(
+    bookmark => bookmark.user.toString() === userId.toString()
+  );
+
+  if (existingBookmarkIndex > -1) {
+    this.bookmarks.splice(existingBookmarkIndex, 1);
+    return false;
+  } else {
+    this.bookmarks.push({ user: userId });
+    return true;
   }
 };
 

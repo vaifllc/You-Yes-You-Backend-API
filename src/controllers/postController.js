@@ -57,17 +57,21 @@ export const getPosts = asyncHandler(async (req, res) => {
     .sort(sort)
     .limit(limit * 1)
     .skip((page - 1) * limit)
-    .lean();
+    .lean({ getters: true });
 
   // Add virtual fields manually since we're using lean()
   posts.forEach(post => {
     post.likesCount = post.likes ? post.likes.length : 0;
     post.commentsCount = post.comments ? post.comments.length : 0;
+    post.bookmarksCount = post.bookmarks ? post.bookmarks.length : 0;
 
     // Check if current user liked the post
     if (req.user) {
       post.isLikedByUser = post.likes?.some(
         like => like.user.toString() === req.user._id.toString()
+      ) || false;
+      post.isBookmarkedByUser = post.bookmarks?.some(
+        bookmark => bookmark.user.toString() === req.user._id.toString()
       ) || false;
     }
   });
@@ -110,8 +114,10 @@ export const getPost = asyncHandler(async (req, res) => {
 
   // Check if current user liked the post
   let isLikedByUser = false;
+  let isBookmarkedByUser = false;
   if (req.user) {
     isLikedByUser = post.isLikedBy(req.user._id);
+    isBookmarkedByUser = post.isBookmarkedBy(req.user._id);
   }
 
   res.status(200).json({
@@ -119,6 +125,7 @@ export const getPost = asyncHandler(async (req, res) => {
     data: {
       ...post.toJSON(),
       isLikedByUser,
+      isBookmarkedByUser,
     },
   });
 });
@@ -268,6 +275,32 @@ export const toggleLike = asyncHandler(async (req, res) => {
     data: {
       isLiked,
       likesCount: post.likesCount,
+    },
+  });
+});
+
+// @desc    Bookmark/unbookmark post
+// @route   PUT /api/posts/:id/bookmark
+// @access  Private
+export const toggleBookmark = asyncHandler(async (req, res) => {
+  const post = await Post.findById(req.params.id);
+
+  if (!post) {
+    return res.status(404).json({
+      success: false,
+      message: 'Post not found',
+    });
+  }
+
+  const isBookmarked = post.toggleBookmark(req.user._id);
+  await post.save();
+
+  res.status(200).json({
+    success: true,
+    message: isBookmarked ? 'Post bookmarked' : 'Post unbookmarked',
+    data: {
+      isBookmarked,
+      bookmarksCount: post.bookmarksCount,
     },
   });
 });
