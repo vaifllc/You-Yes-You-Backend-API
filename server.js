@@ -58,25 +58,38 @@ const server = createServer(app);
 const allowedOrigins = [
   'https://youyesyou.com',
   'https://www.youyesyou.com',
+  'https://you-yes-you.netlify.app',
   'https://youyesyou.ddns.net',
   'http://localhost:3000',
   'http://localhost:5173',
 ];
 
+const isAllowedOrigin = (origin) => {
+  if (!origin) return false;
+  try {
+    const url = new URL(origin);
+    const host = url.host;
+    const hostname = url.hostname;
+
+    return (
+      allowedOrigins.includes(origin) ||
+      hostname === 'localhost' ||
+      hostname === '127.0.0.1' ||
+      /\.netlify\.app$/.test(host) ||
+      /\.netlify\.app$/.test(hostname)
+    );
+  } catch (error) {
+    return false;
+  }
+};
+
 // Socket.IO CORS configuration (separate from Express CORS)
 const io = new Server(server, {
   cors: {
     origin(origin, callback) {
-      // Allow server-to-server/no-origin requests
       if (!origin) return callback(null, true);
-      try {
-        const host = new URL(origin).host;
-        const isAllowed = allowedOrigins.includes(origin) || /\.netlify\.app$/.test(host);
-        if (isAllowed) return callback(null, true);
-        return callback(new Error(`Socket.IO CORS blocked for origin: ${origin}`));
-      } catch (e) {
-        return callback(new Error(`Socket.IO CORS invalid origin: ${origin}`));
-      }
+      if (isAllowedOrigin(origin)) return callback(null, true);
+      return callback(new Error(`Socket.IO CORS blocked for origin: ${origin}`));
     },
     methods: ['GET', 'POST'],
     credentials: true,
@@ -93,25 +106,9 @@ app.set('trust proxy', process.env.TRUST_PROXY ? Number(process.env.TRUST_PROXY)
 // CORS configuration (place BEFORE any rate limiting or other middleware that might short-circuit requests)
 const corsOptions = {
   origin(origin, callback) {
-    // Allow non-browser or same-origin requests
     if (!origin) return callback(null, true);
-
-    try {
-      const url = new URL(origin);
-      const host = url.host; // includes hostname:port if any
-      const hostname = url.hostname;
-
-      const isAllowed =
-        allowedOrigins.includes(origin) ||
-        hostname === 'localhost' ||
-        hostname === '127.0.0.1' ||
-        /\.(netlify)\.app$/.test(host);
-
-      if (isAllowed) return callback(null, true);
-      return callback(new Error(`CORS blocked for origin: ${origin}`));
-    } catch (e) {
-      return callback(new Error(`CORS invalid origin: ${origin}`));
-    }
+    if (isAllowedOrigin(origin)) return callback(null, true);
+    return callback(new Error(`CORS blocked for origin: ${origin}`));
   },
   credentials: true,
   methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],

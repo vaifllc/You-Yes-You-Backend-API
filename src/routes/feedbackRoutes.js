@@ -7,6 +7,7 @@ import {
   deleteFeedback,
   addResponse,
   toggleFlag,
+  toggleBookmark,
   getFeedbackStats,
   getUserFeedback,
   getFeedbackByCategory,
@@ -43,6 +44,7 @@ router.delete('/:id', deleteFeedback);
 // Feedback interactions
 router.post('/:id/responses', moderateContentMiddleware('content'), addResponse);
 router.post('/:id/flag', toggleFlag);
+router.post('/:id/bookmark', toggleBookmark);
 
 // Admin-only routes
 router.put('/:id/moderate', authorize('admin'), moderateFeedback);

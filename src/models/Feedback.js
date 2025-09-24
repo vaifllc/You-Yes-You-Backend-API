@@ -159,16 +159,6 @@ feedbackSchema.virtual('isUserAuthor').get(function() {
   return false; // This will be set on the frontend
 });
 
-// Virtual for isUserBookmarked (will be populated on frontend)
-feedbackSchema.virtual('isUserBookmarked').get(function() {
-  return false; // This will be set on the frontend
-});
-
-// Virtual for isUserFlagged (will be populated on frontend)
-feedbackSchema.virtual('isUserFlagged').get(function() {
-  return false; // This will be set on the frontend
-});
-
 // Methods
 feedbackSchema.methods.addResponse = async function(responseData) {
   this.responses.push(responseData);

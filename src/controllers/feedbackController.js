@@ -482,6 +482,27 @@ export const toggleFlag = asyncHandler(async (req, res) => {
   });
 });
 
+// @desc    Toggle bookmark for feedback
+// @route   POST /api/feedback/:id/bookmark
+// @access  Private
+export const toggleBookmark = asyncHandler(async (req, res) => {
+  const feedback = await Feedback.findById(req.params.id);
+
+  if (!feedback) {
+    return res.status(404).json({
+      success: false,
+      message: 'Feedback not found'
+    });
+  }
+
+  const result = await feedback.toggleBookmark(req.user._id);
+
+  res.status(200).json({
+    success: true,
+    data: result
+  });
+});
+
 // @desc    Get feedback statistics
 // @route   GET /api/feedback/stats/overview
 // @access  Private
@@ -1059,6 +1080,7 @@ export default {
   deleteFeedback,
   addResponse,
   toggleFlag,
+  toggleBookmark,
   getFeedbackStats,
   getUserFeedback,
   getUserBookmarks,
