@@ -164,6 +164,25 @@ postSchema.methods.toggleBookmark = function(userId) {
   }
 };
 
+postSchema.methods.toggleCommentLike = function(commentId, userId) {
+  const comment = this.comments.id(commentId);
+  if (!comment) {
+    return null;
+  }
+
+  const existingLikeIndex = comment.likes.findIndex(
+    like => like.user.toString() === userId.toString()
+  );
+
+  if (existingLikeIndex > -1) {
+    comment.likes.splice(existingLikeIndex, 1);
+    return false;
+  } else {
+    comment.likes.push({ user: userId });
+    return true;
+  }
+};
+
 // Pre-save middleware to update lastActivity
 postSchema.pre('save', function(next) {
   if (this.isModified('comments') || this.isModified('likes')) {

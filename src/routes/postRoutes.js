@@ -10,6 +10,7 @@ import {
   addComment,
   updateComment,
   deleteComment,
+  toggleCommentLike,
   getCategories,
   togglePin,
 } from '../controllers/postController.js';
@@ -44,7 +45,7 @@ router.use(checkUserStatus); // Check if user is banned/suspended
 router.post('/', validatePost, moderatePostContent, logModerationAction('create_post'), createPost);
 router.put('/:id', validateObjectId, validatePost, moderatePostContent, logModerationAction('update_post'), updatePost);
 router.delete('/:id', validateObjectId, deletePost);
-router.put('/:id/like', validateObjectId, toggleLike);
+router.put('/:id/like', toggleLike);
 router.put('/:id/bookmark', toggleBookmark);
 
 // Comment routes
@@ -62,6 +63,11 @@ router.delete('/:postId/comments/:commentId', [
   param('commentId').isMongoId().withMessage('Invalid comment ID'),
   handleValidationErrors,
 ], deleteComment);
+router.put('/:postId/comments/:commentId/like', [
+  param('postId').isMongoId().withMessage('Invalid post ID'),
+  param('commentId').isMongoId().withMessage('Invalid comment ID'),
+  handleValidationErrors,
+], toggleCommentLike);
 
 // Admin only routes
 router.put('/:id/pin', validateObjectId, authorize('admin'), togglePin);

@@ -279,7 +279,7 @@ export const toggleLike = asyncHandler(async (req, res) => {
   });
 });
 
-// @desc    Bookmark/unbookmark post
+// @desc    Toggle bookmark
 // @route   PUT /api/posts/:id/bookmark
 // @access  Private
 export const toggleBookmark = asyncHandler(async (req, res) => {
@@ -297,11 +297,8 @@ export const toggleBookmark = asyncHandler(async (req, res) => {
 
   res.status(200).json({
     success: true,
-    message: isBookmarked ? 'Post bookmarked' : 'Post unbookmarked',
-    data: {
-      isBookmarked,
-      bookmarksCount: post.bookmarksCount,
-    },
+    message: isBookmarked ? 'Post bookmarked' : 'Bookmark removed',
+    data: { isBookmarked },
   });
 });
 
@@ -429,6 +426,46 @@ export const deleteComment = asyncHandler(async (req, res) => {
   res.status(200).json({
     success: true,
     message: 'Comment deleted successfully',
+  });
+});
+
+// @desc    Like/unlike comment
+// @route   PUT /api/posts/:postId/comments/:commentId/like
+// @access  Private
+export const toggleCommentLike = asyncHandler(async (req, res) => {
+  const { postId, commentId } = req.params;
+
+  const post = await Post.findById(postId);
+
+  if (!post) {
+    return res.status(404).json({
+      success: false,
+      message: 'Post not found',
+    });
+  }
+
+  const result = post.toggleCommentLike(commentId, req.user._id);
+
+  if (result === null) {
+    return res.status(404).json({
+      success: false,
+      message: 'Comment not found',
+    });
+  }
+
+  await post.save();
+
+  const comment = post.comments.id(commentId);
+  await comment.populate('likes.user', 'name username avatar');
+
+  res.status(200).json({
+    success: true,
+    message: result ? 'Comment liked' : 'Comment unliked',
+    data: {
+      isLiked: result,
+      likesCount: comment.likes.length,
+      likes: comment.likes,
+    },
   });
 });
 
