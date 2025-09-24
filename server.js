@@ -60,6 +60,7 @@ const allowedOrigins = [
   'https://www.youyesyou.com',
   'https://you-yes-you.netlify.app',
   'https://youyesyou.ddns.net',
+  'https://youyesyouv2.ddns.net',
   'http://localhost:3000',
   'http://localhost:5173',
 ];
@@ -76,7 +77,8 @@ const isAllowedOrigin = (origin) => {
       hostname === 'localhost' ||
       hostname === '127.0.0.1' ||
       /\.netlify\.app$/.test(host) ||
-      /\.netlify\.app$/.test(hostname)
+      /\.netlify\.app$/.test(hostname) ||
+      hostname.endsWith('youyesyouv2.ddns.net')
     );
   } catch (error) {
     return false;
