@@ -5,6 +5,7 @@ import { authenticate, authorize, optionalAuth } from '../middleware/auth.js';
 import { asyncHandler } from '../middleware/errorHandler.js';
 import {
   validateCourse,
+  validateCoursePartial,
   validateObjectId,
   validatePagination,
   handleValidationErrors,
@@ -373,7 +374,7 @@ router.post('/', validateCourse, asyncHandler(async (req, res) => {
 // @desc    Update course
 // @route   PUT /api/courses/:id
 // @access  Private (Admin)
-router.put('/:id', validateObjectId, validateCourse, asyncHandler(async (req, res) => {
+router.put('/:id', validateObjectId, validateCoursePartial, asyncHandler(async (req, res) => {
   const course = await Course.findByIdAndUpdate(
     req.params.id,
     req.body,

@@ -229,6 +229,49 @@ export const validateCourse = [
   handleValidationErrors,
 ];
 
+// Course partial update validation rules (for visibility toggle, etc.)
+export const validateCoursePartial = [
+  body('title')
+    .optional()
+    .trim()
+    .isLength({ min: 5, max: 200 })
+    .withMessage('Course title must be between 5 and 200 characters'),
+
+  body('description')
+    .optional()
+    .trim()
+    .isLength({ min: 20, max: 2000 })
+    .withMessage('Course description must be between 20 and 2000 characters'),
+
+  body('category')
+    .optional()
+    .isIn(['Personal Development', 'Financial Literacy', 'Entrepreneurship', 'Life Skills'])
+    .withMessage('Invalid course category'),
+
+  body('phase')
+    .optional()
+    .isIn(['Phase 1', 'Phase 2', 'Phase 3'])
+    .withMessage('Invalid course phase'),
+
+  body('level')
+    .optional()
+    .isIn(['Beginner', 'Intermediate', 'Advanced'])
+    .withMessage('Invalid course level'),
+
+  body('instructor')
+    .optional()
+    .trim()
+    .isLength({ min: 2, max: 100 })
+    .withMessage('Instructor name must be between 2 and 100 characters'),
+
+  body('isPublished')
+    .optional()
+    .isBoolean()
+    .withMessage('isPublished must be a boolean'),
+
+  handleValidationErrors,
+];
+
 // Parameter validation
 // Accept either `:id` or `:userId` style route params
 export const validateObjectId = [
