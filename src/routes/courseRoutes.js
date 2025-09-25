@@ -10,6 +10,10 @@ import {
   handleValidationErrors,
 } from '../middleware/validation.js';
 import { param } from 'express-validator';
+import {
+  logCourseEnrolled,
+  logModuleCompleted
+} from '../middleware/activityLogger.js';
 
 const router = express.Router();
 
@@ -112,7 +116,7 @@ router.get('/', optionalAuth, validatePagination, asyncHandler(async (req, res) 
 // @desc    Enroll in course
 // @route   POST /api/courses/:id/enroll
 // @access  Private
-router.post('/:id/enroll', authenticate, validateObjectId, asyncHandler(async (req, res) => {
+router.post('/:id/enroll', authenticate, validateObjectId, logCourseEnrolled, asyncHandler(async (req, res) => {
   const courseId = req.params.id;
   const userId = req.user._id;
 
@@ -170,7 +174,7 @@ router.post('/:id/enroll', authenticate, validateObjectId, asyncHandler(async (r
 // @desc    Update course progress
 // @route   PUT /api/courses/:id/progress
 // @access  Private
-router.put('/:id/progress', authenticate, validateObjectId, asyncHandler(async (req, res) => {
+router.put('/:id/progress', authenticate, validateObjectId, logModuleCompleted, asyncHandler(async (req, res) => {
   const { moduleId, completed, progress } = req.body;
   const courseId = req.params.id;
   const userId = req.user._id;

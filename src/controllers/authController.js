@@ -2,9 +2,11 @@ import jwt from 'jsonwebtoken';
 import { generateAccessToken, generateRefreshToken, verifyRefreshToken } from '../utils/generateToken.js';
 import User from '../models/User.js';
 import Notification from '../models/Notification.js';
+import Activity from '../models/Activity.js';
 import { updateStreak, STREAK_TYPES } from '../utils/streakTracker.js';
 import { sendWelcomeMessage } from '../utils/autoMessaging.js';
 import { asyncHandler } from '../middleware/errorHandler.js';
+import { logSignup, directLogActivity } from '../middleware/activityLogger.js';
 
 // Generate JWT moved to utils
 
@@ -78,6 +80,9 @@ export const register = asyncHandler(async (req, res) => {
   // Send welcome message via auto-messaging system
   await sendWelcomeMessage(user._id);
 
+  // Log signup activity
+  await logSignup(user._id, req);
+
   // Trigger webhook for new member (async, non-blocking)
   setTimeout(async () => {
     try {
@@ -142,6 +147,9 @@ export const login = asyncHandler(async (req, res) => {
   user.isOnline = true;
   user.lastActive = new Date();
   await user.save();
+
+  // Log login activity
+  await directLogActivity(user._id, 'login', 'User logged in', { req });
 
   sendTokenResponse(user, 200, res, 'Login successful');
 });

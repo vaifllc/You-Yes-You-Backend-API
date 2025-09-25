@@ -4,6 +4,7 @@ import Post from '../models/Post.js';
 import Course from '../models/Course.js';
 import Event from '../models/Event.js';
 import Challenge from '../models/Challenge.js';
+import Activity from '../models/Activity.js';
 import { authenticate, authorize } from '../middleware/auth.js';
 import { asyncHandler } from '../middleware/errorHandler.js';
 import mongoose from 'mongoose';

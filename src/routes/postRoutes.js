@@ -22,6 +22,11 @@ import {
   logModerationAction
 } from '../middleware/moderation.js';
 import {
+  logPostCreated,
+  logPostLiked,
+  logPostCommented
+} from '../middleware/activityLogger.js';
+import {
   validatePost,
   validateComment,
   validateObjectId,
@@ -42,14 +47,14 @@ router.use(authenticate);
 router.use(checkOwnership());
 router.use(checkUserStatus); // Check if user is banned/suspended
 
-router.post('/', validatePost, moderatePostContent, logModerationAction('create_post'), createPost);
+router.post('/', validatePost, moderatePostContent, logModerationAction('create_post'), logPostCreated, createPost);
 router.put('/:id', validateObjectId, validatePost, moderatePostContent, logModerationAction('update_post'), updatePost);
 router.delete('/:id', validateObjectId, deletePost);
-router.put('/:id/like', toggleLike);
+router.put('/:id/like', logPostLiked, toggleLike);
 router.put('/:id/bookmark', toggleBookmark);
 
 // Comment routes
-router.post('/:id/comments', validateObjectId, validateComment, moderateCommentContent, logModerationAction('create_comment'), addComment);
+router.post('/:id/comments', validateObjectId, validateComment, moderateCommentContent, logModerationAction('create_comment'), logPostCommented, addComment);
 router.put('/:postId/comments/:commentId', [
   param('postId').isMongoId().withMessage('Invalid post ID'),
   param('commentId').isMongoId().withMessage('Invalid comment ID'),

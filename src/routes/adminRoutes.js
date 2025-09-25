@@ -4,6 +4,7 @@ import Post from '../models/Post.js';
 import Course from '../models/Course.js';
 import Event from '../models/Event.js';
 import Feedback from '../models/Feedback.js';
+import Activity from '../models/Activity.js';
 import { authenticate, authorize } from '../middleware/auth.js';
 import { asyncHandler } from '../middleware/errorHandler.js';
 import { validateObjectId, validatePagination, handleValidationErrors } from '../middleware/validation.js';
@@ -64,12 +65,8 @@ router.get('/dashboard', asyncHandler(async (req, res) => {
     .limit(5)
     .select('name username avatar points level');
 
-  // Get recent activity
-  const recentActivity = await Post.find({ isApproved: true })
-    .sort({ createdAt: -1 })
-    .limit(10)
-    .populate('author', 'name username')
-    .select('content author createdAt category');
+  // Get recent activity from Activity model
+  const recentActivity = await Activity.getRecentActivity({ limit: 10 });
 
   res.status(200).json({
     success: true,

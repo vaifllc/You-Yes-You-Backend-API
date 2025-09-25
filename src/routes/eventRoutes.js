@@ -9,6 +9,9 @@ import {
   handleValidationErrors,
 } from '../middleware/validation.js';
 import { param } from 'express-validator';
+import {
+  logEventJoined
+} from '../middleware/activityLogger.js';
 
 const router = express.Router();
 
@@ -154,7 +157,7 @@ router.get('/:id', validateObjectId, optionalAuth, asyncHandler(async (req, res)
 // @desc    RSVP to event
 // @route   PUT /api/events/:id/rsvp
 // @access  Private
-router.put('/:id/rsvp', authenticate, validateObjectId, asyncHandler(async (req, res) => {
+router.put('/:id/rsvp', authenticate, validateObjectId, logEventJoined, asyncHandler(async (req, res) => {
   const { status } = req.body; // 'going', 'maybe', 'not_going'
 
   if (!['going', 'maybe', 'not_going'].includes(status)) {
