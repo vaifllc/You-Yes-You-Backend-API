@@ -31,6 +31,7 @@ const reportSchema = new mongoose.Schema({
       'violence',
       'self_harm',
       'illegal_activity',
+      'personal_information',
       'impersonation',
       'copyright',
       'other',
