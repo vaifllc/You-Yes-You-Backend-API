@@ -15,6 +15,50 @@ const router = express.Router();
 // All admin routes require authentication and admin role
 router.use(authenticate);
 router.use(authorize('admin'));
+
+// @desc    Get single user (Admin)
+// @route   GET /api/admin/users/:id
+// @access  Private (Admin)
+router.get('/users/:id', validateObjectId, asyncHandler(async (req, res) => {
+  const user = await User.findById(req.params.id)
+    .select('-password -resetPasswordToken -resetPasswordExpire');
+
+  if (!user) {
+    return res.status(404).json({ success: false, message: 'User not found' });
+  }
+
+  const rank = await User.countDocuments({ points: { $gt: user.points } }) + 1;
+  const recentActivity = await Activity.getRecentActivity({ limit: 10, userId: user._id });
+
+  res.status(200).json({
+    success: true,
+    data: {
+      _id: user._id,
+      name: user.name,
+      username: user.username,
+      email: user.email,
+      avatar: user.avatar,
+      bio: user.bio,
+      location: user.location,
+      phase: user.phase,
+      points: user.points,
+      level: user.level,
+      role: user.role,
+      isOnline: user.isOnline,
+      emailVerified: user.emailVerified,
+      isBanned: user.isBanned,
+      suspendedUntil: user.suspendedUntil,
+      skills: user.skills,
+      createdAt: user.createdAt,
+      lastActive: user.lastActive,
+      warnings: user.warnings,
+      connections: user.connections,
+      rank,
+      recentActivity,
+    }
+  });
+}));
+
 // @desc    Create user (Admin)
 // @route   POST /api/admin/users
 // @access  Private (Admin)
