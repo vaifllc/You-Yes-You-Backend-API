@@ -869,6 +869,46 @@ router.get('/retention', asyncHandler(async (req, res) => {
 // @desc    Export analytics data
 // @route   GET /api/analytics/export
 // @access  Private (Admin)
+// Simple CSV converter
+function convertToCSV(input) {
+  if (!input) return '';
+
+  const escapeCell = (value) => {
+    if (value === null || value === undefined) return '';
+    let cell = value;
+    if (typeof cell === 'object') {
+      try { cell = JSON.stringify(cell); } catch { cell = String(cell); }
+    }
+    cell = String(cell);
+    // Escape quotes by doubling them
+    if (cell.includes('"') || cell.includes(',') || cell.includes('\n') || cell.includes('\r')) {
+      cell = '"' + cell.replace(/"/g, '""') + '"';
+    }
+    return cell;
+  };
+
+  // Normalize to array of rows
+  const rows = Array.isArray(input) ? input : [input];
+  if (rows.length === 0) return '';
+
+  // Collect headers from union of keys
+  let headers = [];
+  if (typeof rows[0] === 'object' && rows[0] !== null && !Array.isArray(rows[0])) {
+    const keySet = new Set();
+    rows.forEach((row) => {
+      if (row && typeof row === 'object' && !Array.isArray(row)) {
+        Object.keys(row).forEach((k) => keySet.add(k));
+      }
+    });
+    headers = Array.from(keySet);
+    const headerLine = headers.map(escapeCell).join(',');
+    const lines = rows.map((row) => headers.map((h) => escapeCell(row ? row[h] : '')).join(','));
+    return [headerLine, ...lines].join('\n');
+  }
+
+  // Primitive array fallback
+  return rows.map(escapeCell).join('\n');
+}
 router.get('/export', asyncHandler(async (req, res) => {
   const { type = 'users', format = 'json' } = req.query;
 
