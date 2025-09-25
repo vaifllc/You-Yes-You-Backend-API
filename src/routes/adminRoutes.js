@@ -15,6 +15,52 @@ const router = express.Router();
 // All admin routes require authentication and admin role
 router.use(authenticate);
 router.use(authorize('admin'));
+// @desc    Create user (Admin)
+// @route   POST /api/admin/users
+// @access  Private (Admin)
+router.post('/users',
+  [
+    body('name').isString().trim().notEmpty().withMessage('Name is required'),
+    body('username').isString().trim().isLength({ min: 3 }).withMessage('Username is required'),
+    body('email').isEmail().withMessage('Valid email is required'),
+    body('password').isString().isLength({ min: 6 }).withMessage('Password must be at least 6 characters'),
+    handleValidationErrors
+  ],
+  asyncHandler(async (req, res) => {
+    const { name, username, email, password, role, phase, bio, location } = req.body;
+
+    const existing = await User.findOne({ $or: [{ email }, { username }] });
+    if (existing) {
+      return res.status(400).json({ success: false, message: 'User with email or username already exists' });
+    }
+
+    const user = await User.create({
+      name,
+      username,
+      email,
+      password,
+      role: ['admin'].includes(role) ? role : 'user',
+      phase: ['Phase 1','Phase 2','Phase 3'].includes(phase) ? phase : undefined,
+      bio: bio ?? '',
+      location: location ?? '',
+    });
+
+    res.status(201).json({
+      success: true,
+      message: 'User created successfully',
+      data: {
+        _id: user._id,
+        name: user.name,
+        username: user.username,
+        email: user.email,
+        avatar: user.avatar,
+        role: user.role,
+        phase: user.phase,
+        createdAt: user.createdAt,
+      }
+    });
+  })
+);
 
 // @desc    Get admin dashboard stats
 // @route   GET /api/admin/dashboard
@@ -134,7 +180,7 @@ router.get('/users', validatePagination, asyncHandler(async (req, res) => {
 
   // Execute query with pagination
   const users = await User.find(query)
-    .select('-password -resetPasswordToken -resetPasswordExpire')
+    .select('-password -resetPasswordToken -resetPasswordExpire -pointsHistory')
     .sort({ createdAt: -1 })
     .limit(limit * 1)
     .skip((page - 1) * limit);
@@ -159,7 +205,7 @@ router.get('/users', validatePagination, asyncHandler(async (req, res) => {
 // @route   PUT /api/admin/users/:id
 // @access  Private (Admin)
 router.put('/users/:id', validateObjectId, asyncHandler(async (req, res) => {
-  const { role, phase, points, level, email, name, username, bio, location, emailVerified, isBanned, isSuspended } = req.body;
+  const { role, phase, points, level, email, name, username, bio, location, emailVerified, isBanned, isSuspended, suspendedUntil } = req.body;
 
   const user = await User.findById(req.params.id);
 
@@ -204,11 +250,20 @@ router.put('/users/:id', validateObjectId, asyncHandler(async (req, res) => {
   if (typeof emailVerified === 'boolean') user.emailVerified = emailVerified;
 
   // Account status controls
-  if (isBanned === true) {
-    user.warnings.push({ type: 'banned', reason: 'Admin ban', issuedBy: req.user._id, issuedAt: new Date(), isActive: true });
+  if (typeof isBanned === 'boolean') {
+    user.isBanned = isBanned;
+    if (isBanned) {
+      user.warnings.push({ type: 'banned', reason: 'Admin ban', issuedBy: req.user._id, issuedAt: new Date(), isActive: true });
+    }
   }
-  if (isSuspended === true) {
-    user.warnings.push({ type: 'suspension', reason: 'Admin suspension', issuedBy: req.user._id, issuedAt: new Date(), isActive: true, expiresAt: new Date(Date.now() + 7*24*60*60*1000) });
+  if (typeof isSuspended === 'boolean') {
+    if (isSuspended) {
+      const until = suspendedUntil ? new Date(suspendedUntil) : new Date(Date.now() + 7*24*60*60*1000);
+      user.suspendedUntil = until;
+      user.warnings.push({ type: 'suspension', reason: 'Admin suspension', issuedBy: req.user._id, issuedAt: new Date(), isActive: true, expiresAt: until });
+    } else {
+      user.suspendedUntil = null;
+    }
   }
 
   await user.save();
@@ -216,7 +271,25 @@ router.put('/users/:id', validateObjectId, asyncHandler(async (req, res) => {
   res.status(200).json({
     success: true,
     message: 'User updated successfully',
-    data: user,
+    data: {
+      _id: user._id,
+      name: user.name,
+      username: user.username,
+      email: user.email,
+      avatar: user.avatar,
+      bio: user.bio,
+      location: user.location,
+      phase: user.phase,
+      points: user.points,
+      level: user.level,
+      role: user.role,
+      isOnline: user.isOnline,
+      emailVerified: user.emailVerified,
+      isBanned: user.isBanned,
+      suspendedUntil: user.suspendedUntil,
+      createdAt: user.createdAt,
+      lastActive: user.lastActive,
+    },
   });
 }));
 

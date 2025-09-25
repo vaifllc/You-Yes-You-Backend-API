@@ -225,6 +225,15 @@ const userSchema = new mongoose.Schema({
       courseUpdates: { type: Boolean, default: false },
     },
   },
+  // Administrative account states
+  isBanned: {
+    type: Boolean,
+    default: false,
+  },
+  suspendedUntil: {
+    type: Date,
+    default: null,
+  },
 }, {
   timestamps: true,
 });
