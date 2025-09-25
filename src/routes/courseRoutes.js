@@ -373,40 +373,25 @@ router.post('/', validateCourse, asyncHandler(async (req, res) => {
 // @desc    Update course
 // @route   PUT /api/courses/:id
 // @access  Private (Admin)
-router.put('/:id', validateObjectId, asyncHandler(async (req, res) => {
-  console.log('PUT /api/courses/:id - Course ID:', req.params.id);
-  console.log('PUT /api/courses/:id - Request body keys:', Object.keys(req.body));
-  console.log('PUT /api/courses/:id - Request body:', JSON.stringify(req.body, null, 2));
+router.put('/:id', validateObjectId, validateCourse, asyncHandler(async (req, res) => {
+  const course = await Course.findByIdAndUpdate(
+    req.params.id,
+    req.body,
+    { new: true, runValidators: true }
+  );
 
-  try {
-    const course = await Course.findByIdAndUpdate(
-      req.params.id,
-      req.body,
-      { new: true, runValidators: true }
-    );
-
-    if (!course) {
-      console.log('PUT /api/courses/:id - Course not found in database');
-      return res.status(404).json({
-        success: false,
-        message: 'Course not found',
-      });
-    }
-
-    console.log('PUT /api/courses/:id - Course updated successfully');
-    res.status(200).json({
-      success: true,
-      message: 'Course updated successfully',
-      data: course,
-    });
-  } catch (error) {
-    console.error('PUT /api/courses/:id - Database error:', error);
-    res.status(500).json({
+  if (!course) {
+    return res.status(404).json({
       success: false,
-      message: 'Database error during update',
-      error: error.message
+      message: 'Course not found',
     });
   }
+
+  res.status(200).json({
+    success: true,
+    message: 'Course updated successfully',
+    data: course,
+  });
 }));
 
 // @desc    Delete course
